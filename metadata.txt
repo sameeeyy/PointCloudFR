@@ -1,25 +1,23 @@
 [general]
 name=NuageFR
-qgisMinimumVersion=3.0
-description=French IGN LIDAR Data Downloader
-about=Easy-to-use plugin for downloading LiDAR point clouds from IGN (French National Geographic Institute)
-version=1.0
-author=Your Name
-email=your.email@domain.com
+qgisMinimumVersion=3.34
+description=Downloads LiDAR tiles from IGN that intersect with the input AOI
+about=Downloads LiDAR point cloud data from IGN (French National Geographic Institute) based on an Area of Interest (AOI). Perfect for automated workflows in QGIS Model Builder.
+version=1.0.0
+author=Samy KHELIL
+email=k2samy@hotmail.fr
 
-# Required QGIS plugins
-plugin_dependencies=processing
-
-# Required Python packages
 hasProcessingProvider=true
 tags=processing,lidar,download,ign,france,point cloud,nuage,elevation
 
-homepage=https://github.com/yourusername/NuageFR
+homepage=https://github.com/sameeeyy/NuageFR
+repository=https://github.com/sameeeyy/NuageFR
+tracker=https://github.com/sameeeyy/NuageFR/issues
+
 category=Analysis
 icon=icon.png
 
 experimental=False
 deprecated=False
 
-# Python package dependencies
-python_dependencies=wget>=3.2,requests>=2.25.0,geopandas>=0.9.0,numpy>=1.19.0,laspy>=2.0.0
+plugin_dependencies=processing
