@@ -70,7 +70,7 @@ Found a bug? Have a suggestion? Contributions are welcome!
 
 ## 📝 License
 
-MIT © [Your Name]
+MIT © [Samy KHELIL]
 
 ---
 <p align="center">
