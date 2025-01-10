@@ -16,20 +16,37 @@ NuageFR is a QGIS plugin that streamlines the process of downloading and process
   - Merge All Intersecting (ideal for automated workflows in QGIS Model Builder)
   - Use Most Coverage
 - **Automatic Setup** - Handles all dependencies installation automatically
+- 
+## 🚀 Installation
+
+1. **Download Plugin**
+   - Download `NuageFR.zip` from the [releases page](https://github.com/yourusername/NuageFR/releases)
+   - Or clone and zip the repository:
+     ```bash
+     git clone https://github.com/yourusername/NuageFR.git
+     cd NuageFR
+     zip -r NuageFR.zip nuagefr/
+     ```
+
+2. **Install in QGIS**
+   - Open QGIS
+   - Go to `Plugins → Manage and Install Plugins → Install from ZIP`
+   - Browse to your downloaded `NuageFR.zip`
+   - Click `Install Plugin`
+   - Enable the plugin if not automatically enabled
+
+3. **Verify Installation**
+   - Open the Processing Toolbox (`Processing → Toolbox`)
+   - You should see `NuageFR` in the algorithm list
 
 ## 🚀 Quick Start
 
-1. **Install the Plugin**
-   ```
-   QGIS → Plugins → Manage and Install Plugins → Search "NuageFR" → Install
-   ```
-
-2. **Launch NuageFR**
+1. **Launch NuageFR**
    ```
    Processing Toolbox → NuageFR → Download LiDAR
    ```
 
-3. **Select Parameters**
+2. **Select Parameters**
    - Choose your AOI layer
    - Set output folder
    - Pick merge strategy
