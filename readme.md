@@ -16,7 +16,6 @@ NuageFR is a QGIS plugin that streamlines the process of downloading and process
   - Merge All Intersecting (ideal for automated workflows in QGIS Model Builder)
   - Use Most Coverage
 - **Automatic Setup** - Handles all dependencies installation automatically
-- 
 ## 🚀 Installation
 
 1. **Download Plugin**
