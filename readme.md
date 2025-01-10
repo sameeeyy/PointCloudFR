@@ -20,7 +20,7 @@ NuageFR is a QGIS plugin that streamlines the process of downloading and process
 ## 🚀 Installation
 
 1. **Download Plugin**
-   - Download `NuageFR.zip` from the [releases page]([https://github.com/sameeeyy/NuageFR/releases])
+   - Download `NuageFR.zip` from the [releases page](https://github.com/sameeeyy/NuageFR/releases)
    - Or clone and zip the repository:
      ```bash
      git clone https://github.com/yourusername/NuageFR.git
