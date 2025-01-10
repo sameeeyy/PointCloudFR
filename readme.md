@@ -13,7 +13,7 @@ NuageFR is a QGIS plugin that streamlines the process of downloading and process
 - **Parallel Processing** - Downloads multiple tiles simultaneously for better performance
 - **Merge Options** - Three strategies for handling multiple tiles:
   - Use Closest Tile
-  - Merge All Intersecting
+  - Merge All Intersecting (ideal for automated workflows in QGIS Model Builder)
   - Use Most Coverage
 - **Automatic Setup** - Handles all dependencies installation automatically
 
@@ -57,7 +57,7 @@ Merge Strategy | How to handle multiple tiles | `Use Closest Tile` (default)
 
 3. **Merge Strategy Selection**
    - Single location: `Use Closest Tile`
-   - Full coverage: `Merge All Intersecting`
+   - Full coverage: `Merge All Intersecting` - Particularly useful for automated workflows in QGIS Model Builder as it ensures complete data coverage
    - Large areas: `Use Most Coverage`
 
 ## 🤝 Contributing
