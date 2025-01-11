@@ -54,7 +54,22 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         return 'nuagefr'
 
     def shortHelpString(self):
-        return self.tr('Downloads French IGN LiDAR tiles that intersect with the input AOI')
+        """Returns a short help string for the algorithm."""
+        help_text = """
+    Downloads French IGN LiDAR tiles that intersect with the input Area of Interest (AOI).
+
+    This algorithm automatically:
+    - Identifies LiDAR tiles intersecting with your AOI
+    - Downloads required tiles from IGN servers
+    - Optionally merges multiple tiles based on selected strategy
+
+    Version: 1.0.0
+    Copyright © 2025 Samy KHELIL
+    Released under MIT License - feel free to use, modify and share!
+    Email: k2samy@hotmail.fr
+    Repository: https://github.com/sameeeyy/NuageFR
+    """
+        return self.tr(help_text)
 
     def initAlgorithm(self, config=None):
         self.addParameter(
