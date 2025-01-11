@@ -1,60 +1,76 @@
 # __init__.py
 from qgis.core import QgsMessageLog, Qgis, QgsApplication
 from qgis.utils import iface
-from .lidar_provider import LidarProcessingProvider
 import os
-import pkg_resources
-import subprocess
 import sys
+import subprocess
+from pathlib import Path
 
 
-def check_dependencies():
-    """Check if required packages are installed and install if missing."""
+def install_dependencies():
+    """Install required dependencies using OSGeo4W environment."""
     try:
-        # Read requirements from requirements.txt
-        requirements_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
-        with open(requirements_path) as f:
-            requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        # Get the path to requirements.txt
+        plugin_path = Path(__file__).parent
+        requirements_path = plugin_path / 'requirements.txt'
 
-        # Check each requirement
-        missing = []
-        for requirement in requirements:
-            try:
-                pkg_resources.require(requirement)
-            except pkg_resources.DistributionNotFound:
-                missing.append(requirement)
+        # Windows-specific installation using OSGeo4W
+        qgis_path = str(Path(sys.executable).parent)
+        batch_content = f'''@echo off
+call "{qgis_path}\\o4w_env.bat"
+call "py3_env.bat"
+python -m pip install -r "{requirements_path}"
+@echo on
+'''
+        # Create temporary batch file
+        batch_path = plugin_path / 'install_dependencies.bat'
+        with open(batch_path, 'w') as f:
+            f.write(batch_content)
 
-        if missing:
-            # Use pip to install missing packages
-            python_exe = sys.executable
-            for package in missing:
-                try:
-                    subprocess.check_call([python_exe, '-m', 'pip', 'install', package])
-                    QgsMessageLog.logMessage(f"Successfully installed {package}", 'NuageFR', Qgis.Info)
-                except subprocess.CalledProcessError as e:
-                    QgsMessageLog.logMessage(f"Failed to install {package}: {str(e)}", 'NuageFR', Qgis.Critical)
-                    return False
+        # Run the batch file
+        subprocess.run([str(batch_path)], shell=True)
 
+        # Clean up
+        try:
+            batch_path.unlink()
+        except:
+            pass
+
+        QgsMessageLog.logMessage("Dependencies installed successfully", 'NuageFR', Qgis.Success)
         return True
+
     except Exception as e:
-        QgsMessageLog.logMessage(f"Error checking dependencies: {str(e)}", 'NuageFR', Qgis.Critical)
+        QgsMessageLog.logMessage(f"Error installing dependencies: {str(e)}", 'NuageFR', Qgis.Critical)
         return False
 
 
 def classFactory(iface):
-    """Load the plugin."""
-    # Check dependencies first
-    if not check_dependencies():
-        # Show warning to user if dependencies installation failed
+    """Load NuageFR class from file NuageFR"""
+    try:
+        # Install dependencies first
+        if not install_dependencies():
+            iface.messageBar().pushMessage(
+                "NuageFR",
+                "Failed to install required dependencies. Please install them manually.",
+                level=Qgis.Critical,
+                duration=10
+            )
+            return None
+
+        # Only import the provider after dependencies are installed
+        from .lidar_provider import LidarProcessingProvider
+
+        QgsMessageLog.logMessage("NuageFR plugin being loaded", 'NuageFR', Qgis.Info)
+        return LidarPlugin(iface)
+    except Exception as e:
+        QgsMessageLog.logMessage(f"Error loading plugin: {str(e)}", 'NuageFR', Qgis.Critical)
         iface.messageBar().pushMessage(
             "NuageFR",
-            "Failed to install required dependencies. Please install them manually.",
-            level=Qgis.Critical
+            f"Error loading plugin: {str(e)}",
+            level=Qgis.Critical,
+            duration=10
         )
         return None
-
-    QgsMessageLog.logMessage("NuageFR plugin being loaded", 'NuageFR', Qgis.Info)
-    return LidarPlugin(iface)
 
 
 class LidarPlugin:
@@ -66,6 +82,7 @@ class LidarPlugin:
     def initGui(self):
         QgsMessageLog.logMessage("Initializing NuageFR GUI", 'NuageFR', Qgis.Info)
         try:
+            from .lidar_provider import LidarProcessingProvider
             self.provider = LidarProcessingProvider()
             QgsApplication.processingRegistry().addProvider(self.provider)
             self.provider.refreshAlgorithms()
