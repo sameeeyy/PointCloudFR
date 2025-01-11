@@ -265,14 +265,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         except Exception as e:
             feedback.reportError(f"Error during merge operation: {str(e)}")
             return ""
-
-            if result and 'OUTPUT' in result:
-                feedback.pushInfo(f"Successfully merged files to: {result['OUTPUT']}")
-                return result['OUTPUT']
-            else:
-                feedback.reportError("Merge operation failed - no output produced")
-                return ""
-
         except Exception as e:
             feedback.reportError(f"Error during merge operation: {str(e)}")
             return ""
