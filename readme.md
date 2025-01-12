@@ -84,6 +84,16 @@ Found a bug? Have a suggestion? Contributions are welcome!
 2. Create your feature branch
 3. Submit a pull request
 
+## Data Source 📊
+
+NuageFR relies on a comprehensive database of LiDAR HD IGN tiles distribution. This database is maintained and distributed by Diego Cusicanqui through Zenodo:
+
+* **Database Title**: LiDAR HD IGN tiles distribution
+* **Author**: Diego Cusicanqui
+* **Year**: 2024
+* **Publisher**: Zenodo
+* **DOI**: [10.5281/zenodo.13793544](https://doi.org/10.5281/zenodo.13793544)
+
 ## 📝 License
 
 MIT © [Samy KHELIL]
