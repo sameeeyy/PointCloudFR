@@ -70,7 +70,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     Repository: https://github.com/sameeeyy/NuageFR
     """
         return self.tr(help_text)
-
     def initAlgorithm(self, config=None):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
@@ -111,7 +110,11 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 self.MERGE_STRATEGY,
                 self.tr('Strategy for multiple tiles'),
-                options=['Use Closest Tile', 'Merge All Intersecting', 'Use Most Coverage'],
+                options=[
+                    'Download All (No Merge)',
+                    'Merge All Intersecting',
+                    'Use Most Coverage'
+                ],
                 defaultValue=0
             )
         )
@@ -219,18 +222,11 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"Found {len(tiles_df)} intersecting tiles. Applying selection strategy...")
 
-        if strategy == 0:  # Use Closest Tile
-            aoi_centroid = aoi_df.geometry.iloc[0].centroid
-            tiles_df['distance'] = tiles_df.geometry.apply(lambda g: g.distance(aoi_centroid))
-            best_tile = tiles_df.loc[[tiles_df['distance'].idxmin()]]
-            feedback.pushInfo(f"Selected closest tile to AOI centroid")
-            return best_tile
-
-        elif strategy == 1:  # Merge All Intersecting
+        if strategy == 0 or strategy == 1:  # Download All or Merge All Intersecting
             feedback.pushInfo(f"Will use all {len(tiles_df)} intersecting tiles")
             return tiles_df
 
-        elif strategy == 2:  # Use Most Coverage
+        else:  # Use Most Coverage (strategy == 2)
             aoi_geom = aoi_df.geometry.iloc[0]
             tiles_df['intersection_area'] = tiles_df.geometry.apply(lambda g: g.intersection(aoi_geom).area)
             best_tile = tiles_df.loc[[tiles_df['intersection_area'].idxmax()]]
@@ -240,14 +236,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     def merge_laz_files(self, file_paths, output_dir, feedback):
         """
         Merge multiple LAZ files using PDAL through QGIS processing
-
-        Args:
-            file_paths (list): List of paths to LAZ files
-            output_dir (Path): Directory for output
-            feedback: QGIS feedback object
-
-        Returns:
-            str: Path to merged file or empty string if failed
         """
         try:
             feedback.pushInfo("Starting LAZ files merge...")
@@ -277,9 +265,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                 feedback.reportError("Merge operation failed - no output produced")
                 return ""
 
-        except Exception as e:
-            feedback.reportError(f"Error during merge operation: {str(e)}")
-            return ""
         except Exception as e:
             feedback.reportError(f"Error during merge operation: {str(e)}")
             return ""
@@ -332,7 +317,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushInfo("No LiDAR tiles found intersecting with AOI")
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
-                    'OUTPUT_FILE': ''
+                    'OUTPUT_FILES': []
                 }
 
             # Apply tile selection strategy
@@ -342,9 +327,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             total_files = len(selected_tiles)
             feedback.pushInfo(f"Starting download of {total_files} files...")
             downloaded_files = []
-
-            # Ensure max_downloads is at least 1
-            max_downloads = max(1, max_downloads)
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
                 futures = [
@@ -358,34 +340,38 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                     completed += 1
                     if success and file_path:
                         downloaded_files.append(file_path)
-                    # Update progress
                     feedback.setProgress(completed * 100 / total_files)
-                    # Process events to keep UI responsive
-                    from qgis.PyQt.QtCore import QCoreApplication
                     QCoreApplication.processEvents()
 
             if not downloaded_files:
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
-                    'OUTPUT_FILE': ''
+                    'OUTPUT_FILES': []
                 }
 
             # Handle output based on strategy
-            if merge_strategy == 1 and len(downloaded_files) > 1:
-                # Merge multiple files using PDAL
+            if merge_strategy == 0:  # Download All (No Merge)
+                feedback.pushInfo(f"Returning all {len(downloaded_files)} files without merging")
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILES': downloaded_files
+                }
+            elif merge_strategy == 1 and len(downloaded_files) > 1:  # Merge All Intersecting
                 feedback.pushInfo(f"Merging {len(downloaded_files)} files...")
                 output_file = self.merge_laz_files(downloaded_files, downloads_dir, feedback)
                 if not output_file:
                     feedback.reportError("Failed to merge files - using first file instead")
                     output_file = downloaded_files[0]
-            else:
-                # Use single file (either only one or best selected)
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILE': output_file
+                }
+            else:  # Use Most Coverage or single file
                 output_file = downloaded_files[0] if downloaded_files else ''
-
-            return {
-                'OUTPUT_DIRECTORY': str(downloads_dir),
-                'OUTPUT_FILE': output_file
-            }
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILE': output_file
+                }
 
         except Exception as e:
             feedback.reportError(f"Error during processing: {str(e)}")
