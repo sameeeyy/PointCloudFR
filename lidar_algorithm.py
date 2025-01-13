@@ -7,7 +7,12 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterEnum,
                        QgsProcessingOutputFolder,
-                       QgsProcessingOutputFile)
+                       QgsProcessingOutputFile,
+                       QgsPointCloudLayer,
+                       QgsProject,
+                       QgsPointCloudClassifiedRenderer,
+                       QgsPointCloudExtentRenderer,
+                       )
 import processing
 import os
 import sys
@@ -34,6 +39,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     MAX_DOWNLOADS = 'MAX_DOWNLOADS'
     FORCE_DOWNLOAD = 'FORCE_DOWNLOAD'
     MERGE_STRATEGY = 'MERGE_STRATEGY'
+    LOAD_LAYER = 'LOAD_LAYER'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
@@ -48,10 +54,10 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         return self.tr('Download LiDAR')
 
     def group(self):
-        return self.tr('NuageFR')
+        return self.tr('PointCloudFR')
 
     def groupId(self):
-        return 'nuagefr'
+        return 'PointCloudfr'
 
     def shortHelpString(self):
         """Returns a short help string for the algorithm."""
@@ -62,14 +68,16 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     - Identifies LiDAR tiles intersecting with your AOI
     - Downloads required tiles from IGN servers
     - Optionally merges multiple tiles based on selected strategy
+    - Can automatically load the downloaded point cloud into your QGIS project
 
     Version: 1.0.0
     Copyright © 2025 Samy KHELIL
     Released under MIT License - feel free to use, modify and share!
     Email: k2samy@hotmail.fr
-    Repository: https://github.com/sameeeyy/NuageFR
+    Repository: https://github.com/sameeeyy/PointCloudFR
     """
         return self.tr(help_text)
+
     def initAlgorithm(self, config=None):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
@@ -119,46 +127,170 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-    def download_file(self, url: str, output_path: str, feedback, force_download=False) -> tuple[bool, str]:
-        """Download file from a given URL with progress updates."""
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.LOAD_LAYER,
+                self.tr('Load point cloud layer after download'),
+                defaultValue=True
+            )
+        )
+
+    def load_point_cloud_layer(self, file_path: str, feedback) -> bool:
+        """Load a point cloud layer into QGIS project without generating index or statistics."""
         try:
-            if "content-disposition" in requests.head(url, timeout=10).headers:
-                filename = requests.head(url, timeout=10).headers["content-disposition"].split("filename=")[1]
-            else:
+            # Create layer name from file name
+            layer_name = Path(file_path).stem
+
+            # Create layer options with indexing and statistics disabled
+            options = QgsPointCloudLayer.LayerOptions()
+            options.skipIndexGeneration = True  # Skip index generation
+            options.skipStatisticsCalculation = True  # Skip statistics calculation
+
+            # Create and load the point cloud layer
+            layer = QgsPointCloudLayer(file_path, layer_name, "copc", options)
+
+            if not layer.isValid():
+                feedback.reportError(f"Failed to create valid layer from {file_path}")
+                return False
+
+            # Add the layer to the project
+            QgsProject.instance().addMapLayer(layer)
+
+            feedback.pushInfo(f"Successfully loaded point cloud layer: {layer_name}")
+            return True
+
+        except Exception as e:
+            feedback.reportError(f"Error loading point cloud layer: {str(e)}")
+            return False
+
+        except Exception as e:
+            feedback.reportError(f"Error loading point cloud layer: {str(e)}")
+            return False
+
+    def download_file(self, url: str, output_path: str, feedback, force_download=False) -> tuple[bool, str]:
+        """
+        Download file from a given URL with comprehensive error handling and progress updates.
+
+        Args:
+            url (str): The URL to download from
+            output_path (str): Directory to save the downloaded file
+            feedback: QGIS feedback object for progress reporting
+            force_download (bool): Whether to download even if file exists
+
+        Returns:
+            tuple[bool, str]: (Success status, Path to downloaded file or empty string)
+        """
+        temp_file = None
+        output_file = ""
+
+        try:
+            # First try to get the filename from content-disposition
+            try:
+                headers = requests.head(url, timeout=10).headers
+                if "content-disposition" in headers:
+                    filename = headers["content-disposition"].split("filename=")[1].strip('"')
+                else:
+                    filename = url.split("/")[-1]
+            except requests.RequestException as e:
+                feedback.reportError(f"Error getting file info: {str(e)}")
                 filename = url.split("/")[-1]
 
             output_file = os.path.join(output_path, filename)
 
-            # Check if file already exists
+            # Check if file exists and verify its integrity
             if os.path.exists(output_file) and not force_download:
-                feedback.pushInfo(f"File already exists: {filename} - skipping download")
-                return True, output_file
+                try:
+                    # Basic file integrity check
+                    if os.path.getsize(output_file) > 0:
+                        feedback.pushInfo(f"File already exists and appears valid: {filename}")
+                        return True, output_file
+                except OSError as e:
+                    feedback.reportError(f"Error checking existing file: {str(e)}")
+                    # Continue with download if file check fails
 
+            # Create temporary file for download
+            import tempfile
+            temp_fd, temp_path = tempfile.mkstemp(prefix='download_', dir=output_path)
+            os.close(temp_fd)
+            temp_file = temp_path
+
+            # Start download with progress tracking
             feedback.pushInfo(f"Downloading from {url}")
-            response = requests.get(url, stream=True, timeout=30)
-            response.raise_for_status()
 
-            # Get total file size for progress
-            total_size = int(response.headers.get('content-length', 0))
+            # Set up session with retry strategy
+            session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(
+                max_retries=3,
+                pool_connections=1,
+                pool_maxsize=1
+            )
+            session.mount('http://', adapter)
+            session.mount('https://', adapter)
 
-            with open(output_file, mode="wb") as file:
-                if total_size == 0:
-                    file.write(response.content)
-                else:
-                    downloaded = 0
-                    for data in response.iter_content(chunk_size=8192):
-                        downloaded += len(data)
-                        file.write(data)
-                        # Process events periodically to keep UI responsive
-                        if downloaded % (1024 * 1024) == 0:  # Every 1MB
-                            from qgis.PyQt.QtCore import QCoreApplication
-                            QCoreApplication.processEvents()
+            # Stream the download
+            with session.get(url, stream=True, timeout=(10, 30)) as response:
+                response.raise_for_status()
+
+                # Get total file size
+                total_size = int(response.headers.get('content-length', 0))
+                block_size = 8192
+                downloaded = 0
+
+                # Open temporary file for writing
+                with open(temp_file, 'wb') as f:
+                    for data in response.iter_content(chunk_size=block_size):
+                        if data:
+                            downloaded += len(data)
+                            f.write(data)
+
+                            # Update progress
+                            if total_size > 0:
+                                progress = (downloaded / total_size) * 100
+                                feedback.setProgress(int(progress))
+
+                            # Process events to keep UI responsive
+                            if downloaded % (1024 * 1024) == 0:  # Every 1MB
+                                QCoreApplication.processEvents()
+
+                                # Check if canceled
+                                if feedback.isCanceled():
+                                    raise Exception("Operation canceled by user")
+
+            # Verify download size if available
+            if total_size > 0 and downloaded != total_size:
+                raise Exception(f"Download incomplete: got {downloaded} bytes, expected {total_size} bytes")
+
+            # Move temporary file to final location
+            if os.path.exists(output_file):
+                os.remove(output_file)
+            os.rename(temp_file, output_file)
+            temp_file = None  # Prevent deletion in finally block
 
             feedback.pushInfo(f"Successfully downloaded: {filename}")
             return True, output_file
-        except Exception as e:
-            feedback.reportError(f"Error downloading {url}: {str(e)}")
+
+        except requests.Timeout as e:
+            feedback.reportError(f"Timeout downloading {url}: {str(e)}")
             return False, ""
+
+        except requests.RequestException as e:
+            feedback.reportError(f"Download error for {url}: {str(e)}")
+            return False, ""
+
+        except Exception as e:
+            feedback.reportError(f"Unexpected error downloading {url}: {str(e)}")
+            return False, ""
+
+        finally:
+            # Clean up temporary file if it exists
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception as e:
+                    feedback.reportError(f"Error cleaning up temporary file: {str(e)}")
+
+            # Reset progress
+            feedback.setProgress(0)
 
     def extract_zip(self, zip_path: Path, extract_path: Path, feedback) -> bool:
         """Extract zip file."""
@@ -278,6 +410,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             max_downloads = self.parameterAsInt(parameters, self.MAX_DOWNLOADS, context)
             force_download = self.parameterAsBool(parameters, self.FORCE_DOWNLOAD, context)
             merge_strategy = self.parameterAsEnum(parameters, self.MERGE_STRATEGY, context)
+            load_layer = self.parameterAsBool(parameters, self.LOAD_LAYER, context)
 
             # Create output directories
             base_dir = Path(output_folder)
@@ -352,6 +485,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             # Handle output based on strategy
             if merge_strategy == 0:  # Download All (No Merge)
                 feedback.pushInfo(f"Returning all {len(downloaded_files)} files without merging")
+                if load_layer:
+                    for file_path in downloaded_files:
+                        self.load_point_cloud_layer(file_path, feedback)
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILES': downloaded_files
@@ -362,12 +498,16 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                 if not output_file:
                     feedback.reportError("Failed to merge files - using first file instead")
                     output_file = downloaded_files[0]
+                if load_layer:
+                    self.load_point_cloud_layer(output_file, feedback)
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILE': output_file
                 }
             else:  # Use Most Coverage or single file
                 output_file = downloaded_files[0] if downloaded_files else ''
+                if load_layer and output_file:
+                    self.load_point_cloud_layer(output_file, feedback)
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILE': output_file
