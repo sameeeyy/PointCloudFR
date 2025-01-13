@@ -12,6 +12,7 @@ import time
 import locale
 import pkg_resources
 from . import resources
+
 # Plugin version
 VERSION = "1.0.0"
 PLUGIN_NAME = "PointCloudFR"
@@ -201,11 +202,11 @@ def show_info_message(message: str, title: str = "Information"):
 
 class LidarPlugin:
     """Main plugin class."""
+
     def __init__(self, iface):
         self.iface = iface
         self.provider = None
         self.settings = PluginSettings()
-        self.first_start = True
 
         # Initialize plugin directory
         self.plugin_dir = Path(__file__).parent
@@ -233,16 +234,6 @@ class LidarPlugin:
                 self.provider.refreshAlgorithms()
                 QgsMessageLog.logMessage("Provider added successfully", PLUGIN_NAME, Qgis.Info)
 
-                # Show first-time welcome message
-                if self.first_start and not self.settings.get('welcomed', False):
-                    show_info_message(
-                        f"Welcome to {PLUGIN_NAME} v{VERSION}!\n\n"
-                        "You can find the tools in the Processing Toolbox under 'PointCloudFR'.",
-                        "Welcome"
-                    )
-                    self.settings.set('welcomed', True)
-                    self.first_start = False
-
         except Exception as e:
             QgsMessageLog.logMessage(f"Error adding provider: {str(e)}", PLUGIN_NAME, Qgis.Critical)
             show_error_message(f"Error initializing plugin GUI: {str(e)}")
@@ -256,9 +247,9 @@ class LidarPlugin:
                 self.provider = None
                 QgsMessageLog.logMessage("Provider removed successfully", PLUGIN_NAME, Qgis.Info)
 
-            # Clear plugin settings
-            self.settings.remove('welcomed')
-            QgsMessageLog.logMessage("Cleared plugin settings", PLUGIN_NAME, Qgis.Info)
+            # Clear version setting but keep ever_installed flag
+            self.settings.remove('version')
+            QgsMessageLog.logMessage("Cleared version setting", PLUGIN_NAME, Qgis.Info)
 
         except Exception as e:
             QgsMessageLog.logMessage(f"Error removing provider: {str(e)}", PLUGIN_NAME, Qgis.Critical)
@@ -275,12 +266,26 @@ class LidarPlugin:
 def classFactory(iface):
     """Load PointCloudFR class."""
     try:
+        # Check if this is first time ever installation
+        settings = PluginSettings()
+        ever_installed = settings.get('ever_installed', False)
+
         # Install dependencies first
         installer = DependencyInstaller()
         if not installer.install():
             error_msg = "Failed to install required dependencies. Please check the QGIS log for details."
             show_error_message(error_msg)
             return None
+
+        # Show welcome message only on first ever installation
+        if not ever_installed:
+            show_info_message(
+                f"Welcome to {PLUGIN_NAME} v{VERSION}!\n\n"
+                "You can find the tools in the Processing Toolbox under 'PointCloudFR'.",
+                "Welcome"
+            )
+            settings.set('ever_installed', True)
+            settings.set('version', VERSION)
 
         # Initialize plugin
         return LidarPlugin(iface)
