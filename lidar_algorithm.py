@@ -61,21 +61,19 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         """Returns a short help string for the algorithm."""
-        help_text = """
-    Downloads French IGN LiDAR tiles that intersect with the input Area of Interest (AOI).
+        help_text =  help_text = """
+Downloads French IGN LiDAR HD tiles that intersect with the input Area of Interest (AOI).
+Available processing strategies:
+- Download All (No Merge): Get all raw tiles for custom processing
+- Merge All Intersecting: Combines all intersecting tiles
+- Use Most Coverage: Selects the tile with maximum overlap
 
-    This algorithm automatically:
-    - Identifies LiDAR tiles intersecting with your AOI
-    - Downloads required tiles from IGN servers
-    - Optionally merges multiple tiles based on selected strategy
-    - Can automatically load the downloaded point cloud into your QGIS project
-
-    Version: 1.0.0
-    Copyright © 2025 Samy KHELIL
-    Released under MIT License - feel free to use, modify and share!
-    Email: k2samy@hotmail.fr
-    Repository: https://github.com/sameeeyy/PointCloudFR
-    """
+Version: 1.0.0
+Copyright © 2024-2025 Samy KHELIL
+Released under GNU General Public License v3 - you are free to use, modify and share under the terms of the GPL v3 license.
+Email: k2samy@hotmail.fr
+Repository: https://github.com/sameeeyy/PointCloudFR
+"""
         return self.tr(help_text)
 
     def initAlgorithm(self, config=None):
