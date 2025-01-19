@@ -113,6 +113,5 @@ MIT © [Samy KHELIL]
 ---
 <p align="center">
 Made with ❤️ for the QGIS community
-  
 In the loving memory of Mounir Redjimi, my dear professor.
 </p>
