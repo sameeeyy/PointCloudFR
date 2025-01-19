@@ -58,6 +58,107 @@
         <source>Use Most Coverage</source>
         <translation>Utiliser la tuile avec la plus grande couverture</translation>
     </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Selected features only</source>
+        <translation>Entité(s) sélectionnée(s) uniquement</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Parameters</source>
+        <translation>Paramètres</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Log</source>
+        <translation>Journal</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Close</source>
+        <translation>Fermer</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Run</source>
+        <translation>Exécuter</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Advanced</source>
+        <translation>Avancé</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Run as batch process...</source>
+        <translation>Exécuter comme processus de lot...</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Save to temporary file</source>
+        <translation>Enregistrer dans un fichier temporaire</translation>
+    </message>
+    <!-- Help text and descriptions -->
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Downloads French IGN LIDAR HD tiles that intersect with the input Area of Interest (AOI).</source>
+        <translation>Télécharge les tuiles LIDAR HD IGN françaises qui s'intersectent avec la zone d'intérêt (AOI) en entrée.</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Available processing strategies:</source>
+        <translation>Stratégies de traitement disponibles :</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>- Download All (No Merge): Get all raw tiles for custom processing</source>
+        <translation>- Tout télécharger (Sans fusion) : Obtenir toutes les tuiles brutes pour un traitement personnalisé</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>- Merge All Intersecting: Combines all intersecting tiles</source>
+        <translation>- Fusionner toutes les intersections : Combine toutes les tuiles qui s'intersectent</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>- Use Most Coverage: Selects the tile with maximum overlap</source>
+        <translation>- Utiliser la meilleure couverture : Sélectionne la tuile avec le recouvrement maximal</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Version: </source>
+        <translation>Version : </translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Copyright © 2024-2025 Samy KHELIL</source>
+        <translation>Copyright © 2024-2025 Samy KHELIL</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Released under GNU General Public License v3 - you are free to use, modify and share under the terms of the GPL v3 license.</source>
+        <translation>Publié sous licence GNU General Public License v3 - vous êtes libre d'utiliser, modifier et partager selon les termes de la licence GPL v3.</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Email: k2samy@hotmail.fr</source>
+        <translation>Email : k2samy@hotmail.fr</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Repository: </source>
+        <translation>Dépôt : </translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>In the loving memory of Mounir Redjimi, my dear professor and mentor.</source>
+        <translation>À la mémoire de Mounir Redjimi, mon cher professeur et mentor.</translation>
+    </message>
 </context>
 <context>
     <name>LidarPlugin</name>
