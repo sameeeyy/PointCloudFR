@@ -10,35 +10,30 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingOutputFile,
                        QgsPointCloudLayer,
                        QgsProject,
-                       QgsCoordinateReferenceSystem,
-                       QgsMessageLog,
-                       Qgis
+                       QgsPointCloudClassifiedRenderer,
+                       QgsPointCloudExtentRenderer,
                        )
 import processing
 import os
 import sys
-import time
 import subprocess
 from pathlib import Path
+import wget
 import requests
 import geopandas as gpd
 import concurrent.futures
 import zipfile
+import json
+import numpy as np
+import laspy
 import tempfile
 import uuid
-import shutil
-from typing import Optional, Dict
-import gc
 
 
 class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     """
     Processing algorithm for downloading LiDAR tiles from IGN based on AOI.
     """
-
-    # Class variable to store loaded GeoDataFrame
-    _cached_tiles_df: Optional[gpd.GeoDataFrame] = None
-    _cached_database_file: Optional[Path] = None
 
     # Input parameters
     INPUT = 'INPUT'
@@ -142,49 +137,27 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
             )
         )
 
-    def __init__(self):
-        super().__init__()
-        self._temp_files = []
-        self._temp_dir = None
-
-    def cleanup(self):
-        """Clean up temporary files and resources."""
-        for temp_file in self._temp_files:
-            try:
-                if isinstance(temp_file, Path) and temp_file.exists():
-                    temp_file.unlink()
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Cleanup error: {str(e)}", "PointCloudFR", Qgis.Warning)
-
-        if self._temp_dir and Path(self._temp_dir).exists():
-            try:
-                shutil.rmtree(self._temp_dir)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error cleaning temp directory: {str(e)}", "PointCloudFR", Qgis.Warning)
-
-        self._temp_files.clear()
-        self._temp_dir = None
-        gc.collect()
-
-    def createTempDir(self) -> Path:
-        """Create a temporary directory for processing."""
-        self._temp_dir = tempfile.mkdtemp(prefix='pointcloudfr_')
-        return Path(self._temp_dir)
-
     def load_point_cloud_layer(self, file_path: str, feedback) -> bool:
         """Load a point cloud layer into QGIS project without generating index or statistics."""
         try:
+            # Create layer name from file name
             layer_name = Path(file_path).stem
+
+            # Create layer options with indexing and statistics disabled
             options = QgsPointCloudLayer.LayerOptions()
-            options.skipIndexGeneration = True
-            options.skipStatisticsCalculation = True
+            options.skipIndexGeneration = True  # Skip index generation
+            options.skipStatisticsCalculation = True  # Skip statistics calculation
+
+            # Create and load the point cloud layer
             layer = QgsPointCloudLayer(file_path, layer_name, "copc", options)
 
             if not layer.isValid():
                 feedback.reportError(f"Failed to create valid layer from {file_path}")
                 return False
 
+            # Add the layer to the project
             QgsProject.instance().addMapLayer(layer)
+
             feedback.pushInfo(f"Successfully loaded point cloud layer: {layer_name}")
             return True
 
@@ -192,39 +165,15 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
             feedback.reportError(f"Error loading point cloud layer: {str(e)}")
             return False
 
-    def load_tiles_df(self, database_file: Path, feedback) -> Optional[gpd.GeoDataFrame]:
-        """Safely load the tiles dataframe with proper error handling."""
-        try:
-            if (LidarDownloaderAlgorithm._cached_tiles_df is not None and
-                    LidarDownloaderAlgorithm._cached_database_file == database_file):
-                feedback.pushInfo("Using cached database")
-                return LidarDownloaderAlgorithm._cached_tiles_df
-
-            feedback.pushInfo("Loading IGN database...")
-
-            df = gpd.read_file(database_file, engine='pyogrio')
-            if df.crs is None:
-                feedback.pushInfo("Setting default CRS (EPSG:2154)")
-                df.set_crs(epsg=2154, inplace=True)
-
-            LidarDownloaderAlgorithm._cached_tiles_df = df
-            LidarDownloaderAlgorithm._cached_database_file = database_file
-
-            feedback.pushInfo(f"Loaded {len(df)} tiles from IGN database")
-            return df
-
-        except Exception as e:
-            feedback.reportError(f"Error loading database: {str(e)}")
-            import traceback
-            feedback.reportError(traceback.format_exc())
-            return None
-
     def download_file(self, url: str, output_path: str, feedback, force_download=False) -> tuple[bool, str]:
-        """Download file from a given URL with comprehensive error handling and progress updates."""
+        """
+        Download file from a given URL with comprehensive error handling and progress updates.
+        """
         temp_file = None
         output_file = ""
 
         try:
+            # First try to get the filename from content-disposition
             try:
                 headers = requests.head(url, timeout=10).headers
                 if "content-disposition" in headers:
@@ -237,20 +186,24 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
 
             output_file = os.path.join(output_path, filename)
 
+            # Check if file exists and verify its integrity
             if os.path.exists(output_file) and not force_download:
                 try:
+                    # Basic file integrity check
                     if os.path.getsize(output_file) > 0:
                         feedback.pushInfo(f"File already exists and appears valid: {filename}")
                         return True, output_file
                 except OSError as e:
                     feedback.reportError(f"Error checking existing file: {str(e)}")
 
+            # Create temporary file for download
             temp_fd, temp_path = tempfile.mkstemp(prefix='download_', dir=output_path)
             os.close(temp_fd)
             temp_file = temp_path
 
             feedback.pushInfo(f"Downloading from {url}")
 
+            # Set up session with retry strategy
             session = requests.Session()
             adapter = requests.adapters.HTTPAdapter(
                 max_retries=3,
@@ -260,6 +213,7 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
             session.mount('http://', adapter)
             session.mount('https://', adapter)
 
+            # Stream the download
             with session.get(url, stream=True, timeout=(10, 30)) as response:
                 response.raise_for_status()
 
@@ -334,12 +288,14 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
         feedback.pushInfo("Downloading IGN database...")
         zip_path = out_dir / "grille.zip"
 
+        # Try primary source
         success = self.download_file(
             "https://diffusion-lidarhd-classe.ign.fr/download/lidar/shp/classe",
             str(out_dir),
             feedback
         )[0]
 
+        # If primary fails, try backup
         if not success:
             feedback.pushInfo("Trying backup source...")
             success = self.download_file(
@@ -383,28 +339,21 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
         """Merge multiple LAZ files using PDAL through QGIS processing"""
         try:
             feedback.pushInfo("Starting LAZ files merge...")
-
-            timestamp = int(time.time())
-            merged_output = str(Path(output_dir) / f'merged_output_{timestamp}.laz')
-
-            params = {
-                'LAYERS': file_paths,
-                'FILTER_EXPRESSION': '',
-                'OUTPUT': merged_output,
-                'FILTER_EXTENT': None,
-                'OUTPUT_FORMAT': 1,
-                'ADDITIONAL_PARAMETERS': '--writers.las.forward=all --writers.las.compression=true'
-            }
-
-            feedback.pushInfo(f"Running PDAL merge with params: {params}")
+            input_paths = [f'copc://{path}' for path in file_paths]
+            merged_output = str(output_dir / 'merged_output.laz')
 
             result = processing.run(
                 "pdal:merge",
-                params,
+                {
+                    'LAYERS': input_paths,
+                    'FILTER_EXPRESSION': '',
+                    'FILTER_EXTENT': None,
+                    'OUTPUT': merged_output
+                },
                 feedback=feedback
             )
 
-            if result and 'OUTPUT' in result and Path(result['OUTPUT']).exists():
+            if result and 'OUTPUT' in result:
                 feedback.pushInfo(f"Successfully merged files to: {result['OUTPUT']}")
                 return result['OUTPUT']
             else:
@@ -413,16 +362,11 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
 
         except Exception as e:
             feedback.reportError(f"Error during merge operation: {str(e)}")
-            import traceback
-            feedback.reportError(traceback.format_exc())
             return ""
 
     def processAlgorithm(self, parameters, context, feedback):
         """Process the algorithm."""
         try:
-            # Create temporary directory for processing
-            temp_dir = self.createTempDir()
-
             # Get parameters
             source = self.parameterAsSource(parameters, self.INPUT, context)
             output_folder = self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
@@ -444,20 +388,28 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
             database_file = self.download_lidar_database(database_dir, feedback)
             if database_file is None or not database_file.exists():
                 feedback.reportError("Failed to prepare IGN database")
-                self.cleanup()
                 return {}
 
-            # Load tiles dataframe with safety checks
-            tiles_df = self.load_tiles_df(database_file, feedback)
-            if tiles_df is None:
-                self.cleanup()
-                return {}
+            feedback.pushInfo("Loading IGN database...")
+            tiles_df = gpd.read_file(database_file)
+            feedback.pushInfo(f"Loaded {len(tiles_df)} tiles from IGN database")
 
-            # Create temporary file for AOI with unique name
+            # Convert QGIS layer to GeoDataFrame
+            feedback.pushInfo("Processing AOI...")
+
+            # Create a unique temporary file name
             temp_filename = f"temp_aoi_{uuid.uuid4().hex}.gpkg"
-            aoi_path = Path(temp_dir) / temp_filename
-            self._temp_files.append(aoi_path)
+            aoi_path = base_dir / temp_filename
 
+            # Remove existing file if it exists
+            if aoi_path.exists():
+                try:
+                    aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Error removing existing temporary file: {str(e)}")
+                    return {}
+
+            # Save features to temporary file
             try:
                 processing.run("native:savefeatures", {
                     'INPUT': parameters[self.INPUT],
@@ -465,105 +417,122 @@ In the loving memory of Mounir Redjimi, my dear professor and mentor.
                 }, context=context, feedback=feedback)
             except Exception as e:
                 feedback.reportError(f"Error saving features: {str(e)}")
-                self.cleanup()
                 return {}
 
-            try:
-                aoi_df = gpd.read_file(aoi_path)
-                if aoi_df.crs is None:
-                    aoi_df.set_crs(epsg=2154, inplace=True)
-                elif aoi_df.crs != tiles_df.crs:
-                    feedback.pushInfo(f"Reprojecting AOI from {aoi_df.crs} to {tiles_df.crs}")
-                    aoi_df = aoi_df.to_crs(tiles_df.crs)
-                feedback.pushInfo("AOI loaded successfully")
+            aoi_df = gpd.read_file(aoi_path)
+            feedback.pushInfo("AOI loaded successfully")
 
-                # Find intersecting tiles
-                feedback.pushInfo("Finding intersecting tiles...")
-                selected_tiles = tiles_df[tiles_df.intersects(aoi_df.geometry.iloc[0])]
+            # Find intersecting tiles
+            feedback.pushInfo("Finding intersecting tiles...")
+            selected_tiles = tiles_df[tiles_df.intersects(aoi_df.geometry.iloc[0])]
 
-                if len(selected_tiles) == 0:
-                    feedback.pushInfo("No LiDAR tiles found intersecting with AOI")
-                    self.cleanup()
-                    return {
-                        'OUTPUT_DIRECTORY': str(downloads_dir),
-                        'OUTPUT_FILES': []
-                    }
+            if len(selected_tiles) == 0:
+                feedback.pushInfo("No LiDAR tiles found intersecting with AOI")
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILES': []
+                }
 
-                # Apply tile selection strategy
-                selected_tiles = self.select_best_tile(selected_tiles, aoi_df, merge_strategy, feedback)
+            # Apply tile selection strategy
+            selected_tiles = self.select_best_tile(selected_tiles, aoi_df, merge_strategy, feedback)
 
-                # Download tiles
-                total_files = len(selected_tiles)
-                feedback.pushInfo(f"Starting download of {total_files} files...")
-                downloaded_files = []
+            # Download tiles using multiple threads
+            total_files = len(selected_tiles)
+            feedback.pushInfo(f"Starting download of {total_files} files...")
+            downloaded_files = []
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
-                    futures = [
-                        executor.submit(self.download_file, url, str(downloads_dir), feedback, force_download)
-                        for url in selected_tiles["url_telech"]
-                    ]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
+                futures = [
+                    executor.submit(self.download_file, url, str(downloads_dir), feedback, force_download)
+                    for url in selected_tiles["url_telech"]
+                ]
 
-                    completed = 0
-                    for future in concurrent.futures.as_completed(futures):
-                        success, file_path = future.result()
-                        completed += 1
-                        if success and file_path:
-                            downloaded_files.append(file_path)
-                        feedback.setProgress(completed * 100 / total_files)
-                        QCoreApplication.processEvents()
+                completed = 0
+                for future in concurrent.futures.as_completed(futures):
+                    success, file_path = future.result()
+                    completed += 1
+                    if success and file_path:
+                        downloaded_files.append(file_path)
+                    feedback.setProgress(completed * 100 / total_files)
+                    QCoreApplication.processEvents()
 
-                if not downloaded_files:
-                    self.cleanup()
-                    return {
-                        'OUTPUT_DIRECTORY': str(downloads_dir),
-                        'OUTPUT_FILES': []
-                    }
+            if not downloaded_files:
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILES': []
+                }
 
-                # Process based on strategy
-                result = {}
-                if merge_strategy == 0:  # Download All (No Merge)
-                    if load_layer:
-                        for file_path in downloaded_files:
-                            self.load_point_cloud_layer(file_path, feedback)
-                    result = {
-                        'OUTPUT_DIRECTORY': str(downloads_dir),
-                        'OUTPUT_FILES': downloaded_files
-                    }
-                elif merge_strategy == 1 and len(downloaded_files) > 1:  # Merge All
-                    output_file = self.merge_laz_files(downloaded_files, downloads_dir, feedback)
-                    if not output_file:
-                        output_file = downloaded_files[0]
-                    if load_layer:
-                        self.load_point_cloud_layer(output_file, feedback)
-                    result = {
-                        'OUTPUT_DIRECTORY': str(downloads_dir),
-                        'OUTPUT_FILE': output_file
-                    }
-                else:  # Use Most Coverage or single file
-                    output_file = downloaded_files[0] if downloaded_files else ''
-                    if load_layer and output_file:
-                        self.load_point_cloud_layer(output_file, feedback)
-                    result = {
-                        'OUTPUT_DIRECTORY': str(downloads_dir),
-                        'OUTPUT_FILE': output_file
-                    }
+            # Handle output based on strategy
+            if merge_strategy == 0:  # Download All (No Merge)
+                feedback.pushInfo(f"Returning all {len(downloaded_files)} files without merging")
+                if load_layer:
+                    for file_path in downloaded_files:
+                        self.load_point_cloud_layer(file_path, feedback)
 
-                return result
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
 
-            except Exception as e:
-                feedback.reportError(f"Error processing data: {str(e)}")
-                import traceback
-                feedback.reportError(traceback.format_exc())
-                return {}
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILES': downloaded_files
+                }
+            elif merge_strategy == 1 and len(downloaded_files) > 1:  # Merge All Intersecting
+                feedback.pushInfo(f"Merging {len(downloaded_files)} files...")
+                output_file = self.merge_laz_files(downloaded_files, downloads_dir, feedback)
+                if not output_file:
+                    feedback.reportError("Failed to merge files - using first file instead")
+                    output_file = downloaded_files[0]
+                if load_layer:
+                    self.load_point_cloud_layer(output_file, feedback)
 
-            finally:
-                self.cleanup()
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
+
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILE': output_file
+                }
+            else:  # Use Most Coverage or single file
+                output_file = downloaded_files[0] if downloaded_files else ''
+                if load_layer and output_file:
+                    self.load_point_cloud_layer(output_file, feedback)
+
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
+
+                return {
+                    'OUTPUT_DIRECTORY': str(downloads_dir),
+                    'OUTPUT_FILE': output_file
+                }
 
         except Exception as e:
             feedback.reportError(f"Error during processing: {str(e)}")
             import traceback
             feedback.reportError(traceback.format_exc())
-            self.cleanup()
-            return {}
 
-        
+            # Cleanup temporary files in case of error
+            try:
+                if aoi_path.exists():
+                    aoi_path.unlink()
+            except Exception as cleanup_error:
+                feedback.reportError(f"Warning: Could not remove temporary file: {str(cleanup_error)}")
+
+            return {}
