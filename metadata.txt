@@ -21,3 +21,4 @@ experimental=False
 deprecated=False
 
 plugin_dependencies=processing
+translations=fr
