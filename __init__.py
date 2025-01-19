@@ -1,4 +1,3 @@
-# __init__.py
 from qgis.core import QgsMessageLog, Qgis, QgsApplication, QgsSettings
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.PyQt.QtCore import Qt, QTranslator, QCoreApplication
@@ -10,13 +9,48 @@ import tempfile
 import shutil
 import time
 import locale
-import pkg_resources
+import importlib.metadata
+import importlib.util
+import subprocess
 from . import resources
 
 # Plugin version
 VERSION = "1.0.0"
 PLUGIN_NAME = "PointCloudFR"
 PLUGIN_DIR = Path(__file__).parent
+
+
+def check_package_version(package_name: str, required_version: str = None) -> bool:
+    """
+    Check if a package is installed and optionally verify its version.
+    Uses modern importlib.metadata instead of deprecated pkg_resources.
+    """
+    try:
+        # First try to import the module to verify it's actually available
+        spec = importlib.util.find_spec(package_name)
+        if spec is None:
+            return False
+
+        if required_version is None:
+            return True
+
+        # Get installed version
+        try:
+            installed_version = importlib.metadata.version(package_name)
+            if not installed_version:
+                return False
+        except importlib.metadata.PackageNotFoundError:
+            return False
+
+        # Compare versions
+        def parse_version(version_str):
+            return tuple(map(int, version_str.split('.')))
+
+        return parse_version(installed_version) >= parse_version(required_version)
+
+    except Exception as e:
+        QgsMessageLog.logMessage(f"Error checking {package_name}: {str(e)}", PLUGIN_NAME, Qgis.Warning)
+        return False
 
 
 class PluginSettings:
@@ -40,26 +74,17 @@ class PluginSettings:
 
 
 class DependencyInstaller:
-    """Class to manage plugin dependencies."""
+    """Class to manage plugin dependencies using batch files."""
 
     def __init__(self):
         self.plugin_path = PLUGIN_DIR
         self.requirements_path = self.plugin_path / 'requirements.txt'
+        self.py3_env_path = self.plugin_path / 'py3-env.bat'
+        self.install_script_path = self.plugin_path / 'install_pip_packages.bat'
         self.settings = PluginSettings()
 
-    def get_python_path(self):
-        """Get the correct Python executable path based on platform."""
-        try:
-            if platform.system() == 'Windows':
-                return str(Path(sys.executable))
-            else:  # Linux/MacOS
-                return 'python3' if shutil.which('python3') else 'python'
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error determining Python path: {str(e)}", PLUGIN_NAME, Qgis.Critical)
-            return sys.executable
-
     def check_dependencies(self):
-        """Check if required packages are installed."""
+        """Check if required packages are installed with version verification."""
         try:
             if not self.requirements_path.exists():
                 QgsMessageLog.logMessage("requirements.txt not found", PLUGIN_NAME, Qgis.Critical)
@@ -75,12 +100,14 @@ class DependencyInstaller:
 
             missing = []
             for requirement in requirements:
-                try:
-                    pkg_resources.require(requirement)
-                    QgsMessageLog.logMessage(f"Package {requirement} is installed", PLUGIN_NAME, Qgis.Info)
-                except (pkg_resources.DistributionNotFound, pkg_resources.VersionConflict):
+                package_name = requirement.split('>=')[0] if '>=' in requirement else requirement
+                required_version = requirement.split('>=')[1] if '>=' in requirement else None
+
+                if not check_package_version(package_name, required_version):
                     missing.append(requirement)
                     QgsMessageLog.logMessage(f"Package {requirement} needs installation", PLUGIN_NAME, Qgis.Info)
+                else:
+                    QgsMessageLog.logMessage(f"Package {package_name} is installed", PLUGIN_NAME, Qgis.Info)
 
             return missing
 
@@ -88,39 +115,21 @@ class DependencyInstaller:
             QgsMessageLog.logMessage(f"Error checking dependencies: {str(e)}", PLUGIN_NAME, Qgis.Critical)
             return None
 
-    def create_install_script(self):
-        """Create platform-specific installation script."""
-        try:
-            python_path = self.get_python_path()
+    def verify_batch_files(self):
+        """Verify that required batch files exist."""
+        if platform.system() != 'Windows':
+            QgsMessageLog.logMessage("Not on Windows - batch files not needed", PLUGIN_NAME, Qgis.Info)
+            return True
 
-            if platform.system() == 'Windows':
-                script_path = self.plugin_path / 'install_dependencies.bat'
-                qgis_path = str(Path(sys.executable).parent)
-                script_content = f'''@echo off
-call "{qgis_path}\\o4w_env.bat"
-call "py3_env.bat"
-"{python_path}" -m pip install --upgrade pip
-"{python_path}" -m pip install -r "{self.requirements_path}"
-@echo on
-'''
-            else:  # Linux/MacOS
-                script_path = self.plugin_path / 'install_dependencies.sh'
-                script_content = f'''#!/bin/bash
-"{python_path}" -m pip install --upgrade pip
-"{python_path}" -m pip install -r "{self.requirements_path}"
-'''
+        if not self.py3_env_path.exists():
+            QgsMessageLog.logMessage("py3-env.bat not found", PLUGIN_NAME, Qgis.Critical)
+            return False
 
-            with open(script_path, 'w', newline='\n') as f:
-                f.write(script_content)
+        if not self.install_script_path.exists():
+            QgsMessageLog.logMessage("install_pip_packages.bat not found", PLUGIN_NAME, Qgis.Critical)
+            return False
 
-            if platform.system() != 'Windows':
-                script_path.chmod(0o755)
-
-            return script_path
-
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error creating installation script: {str(e)}", PLUGIN_NAME, Qgis.Critical)
-            return None
+        return True
 
     def install(self):
         """Execute dependency installation."""
@@ -133,19 +142,36 @@ call "py3_env.bat"
                 QgsMessageLog.logMessage("All dependencies installed", PLUGIN_NAME, Qgis.Success)
                 return True
 
-            # Create installation script
-            script_path = self.create_install_script()
-            if not script_path:
+            # Verify batch files exist for Windows
+            if not self.verify_batch_files():
+                return False
+
+            # Show installation prompt
+            message = f"The following Python packages are required:\\n\\n{', '.join(missing)}\\n\\n"
+            message += "Would you like to install them now? After installation please restart QGIS."
+            reply = QMessageBox.question(None, 'Missing Dependencies', message,
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if reply == QMessageBox.No:
                 return False
 
             try:
-                import subprocess
-                process = subprocess.Popen(
-                    [str(script_path)],
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
+                if platform.system() == 'Windows':
+                    # Use batch file on Windows
+                    process = subprocess.Popen(
+                        [str(self.install_script_path)],
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                else:
+                    # Direct pip installation on Unix
+                    pip_command = 'pip3' if shutil.which('pip3') else 'pip'
+                    process = subprocess.Popen(
+                        [pip_command, 'install', '-r', str(self.requirements_path)],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
 
                 stdout, stderr = process.communicate(timeout=300)  # 5 minutes timeout
 
@@ -157,11 +183,9 @@ call "py3_env.bat"
                 process.kill()
                 QgsMessageLog.logMessage("Installation timeout", PLUGIN_NAME, Qgis.Critical)
                 return False
-            finally:
-                try:
-                    script_path.unlink()
-                except:
-                    pass
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Installation error: {str(e)}", PLUGIN_NAME, Qgis.Critical)
+                return False
 
             # Verify installation
             missing_after = self.check_dependencies()
@@ -280,7 +304,7 @@ def classFactory(iface):
         # Show welcome message only on first ever installation
         if not ever_installed:
             show_info_message(
-                f"Welcome to {PLUGIN_NAME} v{VERSION}!\n\n"
+                f"Welcome to {PLUGIN_NAME} v{VERSION}!\\n\\n"
                 "You can find the tools in the Processing Toolbox under 'PointCloudFR'.",
                 "Welcome"
             )
@@ -291,7 +315,7 @@ def classFactory(iface):
         return LidarPlugin(iface)
 
     except Exception as e:
-        error_msg = f"Error loading plugin: {str(e)}\nPlease check the QGIS log for details."
+        error_msg = f"Error loading plugin: {str(e)}\\nPlease check the QGIS log for details."
         show_error_message(error_msg)
         QgsMessageLog.logMessage(f"Error loading plugin: {str(e)}", PLUGIN_NAME, Qgis.Critical)
         return None

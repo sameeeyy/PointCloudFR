@@ -1,23 +1,30 @@
-# dependency_installer.py
 from pathlib import Path
 import subprocess
 import platform
 import sys
+import os
+import importlib
 from qgis.core import QgsMessageLog, Qgis
+from qgis.PyQt.QtWidgets import QMessageBox
 import pkg_resources
 import locale
 
 
 class DependencyInstaller:
+    """Dependency installer that uses external batch files for installation."""
+
     def __init__(self):
         self.plugin_path = Path(__file__).parent
         self.requirements_path = self.plugin_path / 'requirements.txt'
+        self.py3_env_path = self.plugin_path / 'py3-env.bat'
+        self.install_script_path = self.plugin_path / 'install_pip_packages.bat'
+        self.plugin_name = 'YourPluginName'  # Replace with your plugin name
 
     def check_dependencies(self):
-        """Check if required packages are already installed."""
+        """Check if required packages are installed with version verification."""
         try:
             if not self.requirements_path.exists():
-                QgsMessageLog.logMessage("requirements.txt not found", 'PointCloudFR', Qgis.Critical)
+                QgsMessageLog.logMessage("requirements.txt not found", self.plugin_name, Qgis.Critical)
                 return None
 
             # Read requirements with proper encoding handling
@@ -30,100 +37,133 @@ class DependencyInstaller:
 
             missing = []
             for requirement in requirements:
+                package_name = requirement.split('>=')[0] if '>=' in requirement else requirement
                 try:
-                    pkg_resources.require(requirement)
-                    QgsMessageLog.logMessage(f"Package {requirement} is installed", 'PointCloudFR', Qgis.Info)
-                except (pkg_resources.DistributionNotFound, pkg_resources.VersionConflict):
+                    # Try importing the module first
+                    module = importlib.import_module(package_name)
+
+                    # Check version if specified in requirements
+                    if '>=' in requirement:
+                        required_version = requirement.split('>=')[1]
+                        if hasattr(module, '__version__'):
+                            current_version = module.__version__
+                            if pkg_resources.parse_version(current_version) < pkg_resources.parse_version(
+                                    required_version):
+                                missing.append(requirement)
+
+                    QgsMessageLog.logMessage(f"Package {package_name} is installed", self.plugin_name, Qgis.Info)
+                except (ImportError, pkg_resources.DistributionNotFound, pkg_resources.VersionConflict):
                     missing.append(requirement)
-                    QgsMessageLog.logMessage(f"Package {requirement} needs installation", 'PointCloudFR', Qgis.Info)
+                    QgsMessageLog.logMessage(f"Package {requirement} needs installation", self.plugin_name, Qgis.Info)
 
             return missing
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error checking dependencies: {str(e)}", 'PointCloudFR', Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error checking dependencies: {str(e)}", self.plugin_name, Qgis.Critical)
             return None
 
-    def create_install_script(self):
-        """Create platform-specific installation script."""
+    def prompt_installation(self, missing_packages):
+        """Prompt user for installation of missing packages."""
+        message = f"The following Python packages are required to use the plugin {self.plugin_name}:\n\n"
+        message += "\n".join(missing_packages)
+        message += "\n\nWould you like to install them now? After installation please restart QGIS."
+
+        reply = QMessageBox.question(None, 'Missing Dependencies', message,
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        return reply == QMessageBox.Yes
+
+    def verify_batch_files(self):
+        """Verify that required batch files exist."""
+        if platform.system() != 'Windows':
+            QgsMessageLog.logMessage("Not on Windows - batch files not needed", self.plugin_name, Qgis.Info)
+            return True
+
+        if not self.py3_env_path.exists():
+            QgsMessageLog.logMessage("py3-env.bat not found", self.plugin_name, Qgis.Critical)
+            return False
+
+        if not self.install_script_path.exists():
+            QgsMessageLog.logMessage("install_pip_packages.bat not found", self.plugin_name, Qgis.Critical)
+            return False
+
+        return True
+
+    def run_installation(self):
+        """Run the installation using batch files on Windows or pip directly on Unix."""
         try:
             if platform.system() == 'Windows':
-                script_path = self.plugin_path / 'install_dependencies.bat'
-                qgis_path = str(Path(sys.executable).parent)
-                script_content = f'''@echo off
-call "{qgis_path}\\o4w_env.bat"
-call "py3_env.bat"
-python -m pip install --upgrade pip
-python -m pip install -r "{self.requirements_path}"
-@echo on
-'''
-            else:  # Linux/MacOS
-                script_path = self.plugin_path / 'install_dependencies.sh'
-                script_content = f'''#!/bin/bash
-python3 -m pip install --upgrade pip
-python3 -m pip install -r "{self.requirements_path}"
-'''
-
-            with open(script_path, 'w', newline='\n') as f:
-                f.write(script_content)
-
-            if platform.system() != 'Windows':
-                script_path.chmod(0o755)
-
-            return script_path
-
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error creating installation script: {str(e)}", 'PointCloudFR', Qgis.Critical)
-            return None
-
-    def install(self):
-        """Execute dependency installation."""
-        try:
-            # Check existing dependencies
-            missing = self.check_dependencies()
-            if missing is None:
-                QgsMessageLog.logMessage("Proceeding with full installation", 'PointCloudFR', Qgis.Warning)
-            elif not missing:
-                QgsMessageLog.logMessage("All dependencies installed", 'PointCloudFR', Qgis.Success)
-                return True
-
-            # Create and execute installation script
-            script_path = self.create_install_script()
-            if not script_path:
-                return False
-
-            try:
+                # Run the installation batch file
                 process = subprocess.Popen(
-                    [str(script_path)],
+                    [str(self.install_script_path)],
                     shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
+            else:
+                # On Unix systems, run pip directly
+                pip_command = 'pip3' if shutil.which('pip3') else 'pip'
+                process = subprocess.Popen(
+                    [pip_command, 'install', '-r', str(self.requirements_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
 
-                stdout, stderr = process.communicate(timeout=300)
+            stdout, stderr = process.communicate(timeout=300)  # 5 minutes timeout
 
-                if process.returncode != 0:
-                    QgsMessageLog.logMessage(f"Installation error: {stderr.decode()}", 'PointCloudFR', Qgis.Critical)
-                    return False
-
-            except subprocess.TimeoutExpired:
-                process.kill()
-                QgsMessageLog.logMessage("Installation timeout", 'PointCloudFR', Qgis.Critical)
+            if process.returncode != 0:
+                QgsMessageLog.logMessage(
+                    f"Installation error: {stderr.decode()}",
+                    self.plugin_name,
+                    Qgis.Critical
+                )
                 return False
-            finally:
-                try:
-                    script_path.unlink()
-                except:
-                    pass
+
+            return True
+
+        except subprocess.TimeoutExpired:
+            process.kill()
+            QgsMessageLog.logMessage("Installation timeout", self.plugin_name, Qgis.Critical)
+            return False
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Installation error: {str(e)}", self.plugin_name, Qgis.Critical)
+            return False
+
+    def install(self):
+        """Execute dependency installation with user prompt."""
+        try:
+            # Check existing dependencies
+            missing = self.check_dependencies()
+            if missing is None:
+                QgsMessageLog.logMessage("Error checking dependencies", self.plugin_name, Qgis.Critical)
+                return False
+            elif not missing:
+                QgsMessageLog.logMessage("All dependencies installed", self.plugin_name, Qgis.Success)
+                return True
+
+            # Verify batch files exist
+            if not self.verify_batch_files():
+                return False
+
+            # Prompt user for installation
+            if not self.prompt_installation(missing):
+                return False
+
+            # Run installation
+            if not self.run_installation():
+                return False
 
             # Verify installation
             missing_after = self.check_dependencies()
             if missing_after:
-                QgsMessageLog.logMessage(f"Dependencies still missing: {', '.join(missing_after)}",
-                                         'PointCloudFR', Qgis.Critical)
+                QgsMessageLog.logMessage(
+                    f"Dependencies still missing after installation: {', '.join(missing_after)}",
+                    self.plugin_name,
+                    Qgis.Critical
+                )
                 return False
 
             return True
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"Installation error: {str(e)}", 'PointCloudFR', Qgis.Critical)
+            QgsMessageLog.logMessage(f"Installation error: {str(e)}", self.plugin_name, Qgis.Critical)
             return False

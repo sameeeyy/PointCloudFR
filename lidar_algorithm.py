@@ -26,6 +26,8 @@ import zipfile
 import json
 import numpy as np
 import laspy
+import tempfile
+import uuid
 
 
 class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
@@ -61,7 +63,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         """Returns a short help string for the algorithm."""
-        help_text =  help_text = """
+        help_text = """
 Downloads French IGN LiDAR HD tiles that intersect with the input Area of Interest (AOI).
 Available processing strategies:
 - Download All (No Merge): Get all raw tiles for custom processing
@@ -73,6 +75,8 @@ Copyright © 2024-2025 Samy KHELIL
 Released under GNU General Public License v3 - you are free to use, modify and share under the terms of the GPL v3 license.
 Email: k2samy@hotmail.fr
 Repository: https://github.com/sameeeyy/PointCloudFR
+
+In the loving memory of Mounir Redjimi, my dear professor and mentor.
 """
         return self.tr(help_text)
 
@@ -161,22 +165,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             feedback.reportError(f"Error loading point cloud layer: {str(e)}")
             return False
 
-        except Exception as e:
-            feedback.reportError(f"Error loading point cloud layer: {str(e)}")
-            return False
-
     def download_file(self, url: str, output_path: str, feedback, force_download=False) -> tuple[bool, str]:
         """
         Download file from a given URL with comprehensive error handling and progress updates.
-
-        Args:
-            url (str): The URL to download from
-            output_path (str): Directory to save the downloaded file
-            feedback: QGIS feedback object for progress reporting
-            force_download (bool): Whether to download even if file exists
-
-        Returns:
-            tuple[bool, str]: (Success status, Path to downloaded file or empty string)
         """
         temp_file = None
         output_file = ""
@@ -204,15 +195,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                         return True, output_file
                 except OSError as e:
                     feedback.reportError(f"Error checking existing file: {str(e)}")
-                    # Continue with download if file check fails
 
             # Create temporary file for download
-            import tempfile
             temp_fd, temp_path = tempfile.mkstemp(prefix='download_', dir=output_path)
             os.close(temp_fd)
             temp_file = temp_path
 
-            # Start download with progress tracking
             feedback.pushInfo(f"Downloading from {url}")
 
             # Set up session with retry strategy
@@ -229,40 +217,33 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             with session.get(url, stream=True, timeout=(10, 30)) as response:
                 response.raise_for_status()
 
-                # Get total file size
                 total_size = int(response.headers.get('content-length', 0))
                 block_size = 8192
                 downloaded = 0
 
-                # Open temporary file for writing
                 with open(temp_file, 'wb') as f:
                     for data in response.iter_content(chunk_size=block_size):
                         if data:
                             downloaded += len(data)
                             f.write(data)
 
-                            # Update progress
                             if total_size > 0:
                                 progress = (downloaded / total_size) * 100
                                 feedback.setProgress(int(progress))
 
-                            # Process events to keep UI responsive
-                            if downloaded % (1024 * 1024) == 0:  # Every 1MB
+                            if downloaded % (1024 * 1024) == 0:
                                 QCoreApplication.processEvents()
 
-                                # Check if canceled
                                 if feedback.isCanceled():
                                     raise Exception("Operation canceled by user")
 
-            # Verify download size if available
             if total_size > 0 and downloaded != total_size:
                 raise Exception(f"Download incomplete: got {downloaded} bytes, expected {total_size} bytes")
 
-            # Move temporary file to final location
             if os.path.exists(output_file):
                 os.remove(output_file)
             os.rename(temp_file, output_file)
-            temp_file = None  # Prevent deletion in finally block
+            temp_file = None
 
             feedback.pushInfo(f"Successfully downloaded: {filename}")
             return True, output_file
@@ -270,24 +251,18 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         except requests.Timeout as e:
             feedback.reportError(f"Timeout downloading {url}: {str(e)}")
             return False, ""
-
         except requests.RequestException as e:
             feedback.reportError(f"Download error for {url}: {str(e)}")
             return False, ""
-
         except Exception as e:
             feedback.reportError(f"Unexpected error downloading {url}: {str(e)}")
             return False, ""
-
         finally:
-            # Clean up temporary file if it exists
             if temp_file and os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)
                 except Exception as e:
                     feedback.reportError(f"Error cleaning up temporary file: {str(e)}")
-
-            # Reset progress
             feedback.setProgress(0)
 
     def extract_zip(self, zip_path: Path, extract_path: Path, feedback) -> bool:
@@ -333,11 +308,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             feedback.reportError("Failed to download IGN database")
             return None
 
-        # Extract the database
         if not self.extract_zip(zip_path, out_dir, feedback):
             return None
 
-        # Verify the shapefile exists after extraction
         if not tiles_fn.exists():
             feedback.reportError(f"Expected shapefile not found at {tiles_fn}")
             return None
@@ -355,7 +328,6 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         if strategy == 0 or strategy == 1:  # Download All or Merge All Intersecting
             feedback.pushInfo(f"Will use all {len(tiles_df)} intersecting tiles")
             return tiles_df
-
         else:  # Use Most Coverage (strategy == 2)
             aoi_geom = aoi_df.geometry.iloc[0]
             tiles_df['intersection_area'] = tiles_df.geometry.apply(lambda g: g.intersection(aoi_geom).area)
@@ -364,19 +336,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return best_tile
 
     def merge_laz_files(self, file_paths, output_dir, feedback):
-        """
-        Merge multiple LAZ files using PDAL through QGIS processing
-        """
+        """Merge multiple LAZ files using PDAL through QGIS processing"""
         try:
             feedback.pushInfo("Starting LAZ files merge...")
-
-            # Prepare input paths in PDAL format
             input_paths = [f'copc://{path}' for path in file_paths]
-
-            # Set up output path - using LAZ instead of COPC
             merged_output = str(output_dir / 'merged_output.laz')
 
-            # Run PDAL merge through QGIS processing
             result = processing.run(
                 "pdal:merge",
                 {
@@ -431,11 +396,28 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Convert QGIS layer to GeoDataFrame
             feedback.pushInfo("Processing AOI...")
-            aoi_path = base_dir / "temp_aoi.gpkg"
-            processing.run("native:savefeatures", {
-                'INPUT': parameters[self.INPUT],
-                'OUTPUT': str(aoi_path)
-            }, context=context, feedback=feedback)
+
+            # Create a unique temporary file name
+            temp_filename = f"temp_aoi_{uuid.uuid4().hex}.gpkg"
+            aoi_path = base_dir / temp_filename
+
+            # Remove existing file if it exists
+            if aoi_path.exists():
+                try:
+                    aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Error removing existing temporary file: {str(e)}")
+                    return {}
+
+            # Save features to temporary file
+            try:
+                processing.run("native:savefeatures", {
+                    'INPUT': parameters[self.INPUT],
+                    'OUTPUT': str(aoi_path)
+                }, context=context, feedback=feedback)
+            except Exception as e:
+                feedback.reportError(f"Error saving features: {str(e)}")
+                return {}
 
             aoi_df = gpd.read_file(aoi_path)
             feedback.pushInfo("AOI loaded successfully")
@@ -475,6 +457,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     QCoreApplication.processEvents()
 
             if not downloaded_files:
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILES': []
@@ -486,6 +474,14 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 if load_layer:
                     for file_path in downloaded_files:
                         self.load_point_cloud_layer(file_path, feedback)
+
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
+
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILES': downloaded_files
@@ -498,6 +494,14 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     output_file = downloaded_files[0]
                 if load_layer:
                     self.load_point_cloud_layer(output_file, feedback)
+
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
+
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILE': output_file
@@ -506,6 +510,14 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 output_file = downloaded_files[0] if downloaded_files else ''
                 if load_layer and output_file:
                     self.load_point_cloud_layer(output_file, feedback)
+
+                # Cleanup temporary files
+                try:
+                    if aoi_path.exists():
+                        aoi_path.unlink()
+                except Exception as e:
+                    feedback.reportError(f"Warning: Could not remove temporary file: {str(e)}")
+
                 return {
                     'OUTPUT_DIRECTORY': str(downloads_dir),
                     'OUTPUT_FILE': output_file
@@ -515,4 +527,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             feedback.reportError(f"Error during processing: {str(e)}")
             import traceback
             feedback.reportError(traceback.format_exc())
+
+            # Cleanup temporary files in case of error
+            try:
+                if aoi_path.exists():
+                    aoi_path.unlink()
+            except Exception as cleanup_error:
+                feedback.reportError(f"Warning: Could not remove temporary file: {str(cleanup_error)}")
+
             return {}
