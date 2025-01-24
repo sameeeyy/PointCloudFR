@@ -141,8 +141,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         Copyright © 2024-2025 Samy KHELIL
         Released under GNU General Public License v3
         Repository: https://github.com/sameeeyy/PointCloudFR
-
-        In the loving memory of Mounir Redjimi, my dear professor and mentor.
         """)
 
     def initAlgorithm(self, config=None):
