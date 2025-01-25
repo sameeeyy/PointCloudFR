@@ -304,7 +304,7 @@ def classFactory(iface):
         # Show welcome message only on first ever installation
         if not ever_installed:
             show_info_message(
-                f"Welcome to {PLUGIN_NAME} v{VERSION}!\\n\\n"
+                f"Welcome to {PLUGIN_NAME} v{VERSION}!\n\n"
                 "You can find the tools in the Processing Toolbox under 'PointCloudFR'.",
                 "Welcome"
             )
