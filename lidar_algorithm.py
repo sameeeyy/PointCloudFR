@@ -120,7 +120,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         return 'download'
 
     def displayName(self):
-        return self.tr('Download LiDAR')
+        return self.tr('Download LiDAR datas')
 
     def group(self):
         return self.tr('PointCloudFR')

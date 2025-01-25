@@ -5,8 +5,8 @@
     <name>Processing</name>
     <message>
         <location filename="../lidar_algorithm.py" line="0"/>
-        <source>Download LiDAR</source>
-        <translation>Télécharger le LiDAR</translation>
+        <source>Download LiDAR datas</source>
+        <translation>Télécharger les données LiDAR</translation>
     </message>
     <message>
         <location filename="../lidar_algorithm.py" line="0"/>
