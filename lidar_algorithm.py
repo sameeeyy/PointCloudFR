@@ -7,6 +7,8 @@ import os
 import zipfile
 import logging
 from datetime import datetime
+import threading
+import time
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -38,6 +40,48 @@ import processing
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
+
+class DownloadProgressTracker:
+    """Tracks overall progress across multiple concurrent downloads."""
+
+    def __init__(self, feedback):
+        self.feedback = feedback
+        self.total_size = 0
+        self.downloaded = 0
+        self._sizes = {}
+        self._lock = threading.Lock()
+
+    def add_file(self, url: str, size: int):
+        """Add a file to track with its size."""
+        with self._lock:
+            self._sizes[url] = size
+            self.total_size += size
+
+    def update_progress(self, url: str, bytes_downloaded: int):
+        """Update progress for a specific file."""
+        with self._lock:
+            # Calculate the difference from last known progress
+            previous = getattr(self, f'_last_{url}', 0)
+            difference = bytes_downloaded - previous
+
+            # Update the total downloaded size
+            self.downloaded += difference
+
+            # Store the new progress
+            setattr(self, f'_last_{url}', bytes_downloaded)
+
+            # Calculate and set overall progress
+            if self.total_size > 0:
+                progress = (self.downloaded / self.total_size) * 100
+                self.feedback.setProgress(int(progress))
+
+    def get_total_size_mb(self) -> float:
+        """Get total size in megabytes."""
+        return self.total_size / (1024 * 1024)
+
+    def get_downloaded_mb(self) -> float:
+        """Get downloaded size in megabytes."""
+        return self.downloaded / (1024 * 1024)
 
 class LidarLogger:
     """Custom logger for LiDAR operations"""
@@ -255,22 +299,29 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             self.logger.error(f"Error loading point cloud layer: {str(e)}")
             return False
 
-    def download_file(self, url: str, output_path: str, force_download: bool = False) -> Tuple[bool, str]:
-        """Download file with error handling and progress tracking."""
+    def download_file(self, url: str, output_path: str, progress_tracker: DownloadProgressTracker,
+                      force_download: bool = False) -> Tuple[bool, str]:
+        """Download file with consolidated progress tracking."""
         output_path = Path(output_path)
         temp_file_path = None
 
         try:
             # Get filename and check existing file
             with requests.head(url, timeout=10) as response:
+                content_length = int(response.headers.get('content-length', 0))
                 filename = (
                         response.headers.get("content-disposition", "").split("filename=")[-1].strip('"') or
                         url.split("/")[-1]
                 )
 
+                # Add file to progress tracker
+                progress_tracker.add_file(url, content_length)
+
             output_file = output_path / filename
             if output_file.exists() and not force_download and output_file.stat().st_size > 0:
                 self.logger.info(f"File already exists and appears valid: {filename}")
+                # Update progress tracker for skipped file
+                progress_tracker.update_progress(url, content_length)
                 return True, str(output_file)
 
             # Configure session with retries
@@ -281,50 +332,32 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
             # Download with progress tracking
             temp_file_path = output_path / f"download_{uuid.uuid4().hex}"
-            try:
-                self.logger.info(f"Downloading from {url}")
-                with open(temp_file_path, 'wb') as temp_file:
-                    with session.get(url, stream=True, timeout=(10, 30)) as response:
-                        response.raise_for_status()
-                        total_size = int(response.headers.get('content-length', 0))
-                        downloaded = 0
 
-                        for data in response.iter_content(chunk_size=8192):
-                            if self.feedback.isCanceled():
-                                raise InterruptedError("Operation canceled by user")
+            self.logger.info(f"Downloading from {url}")
+            with open(temp_file_path, 'wb') as temp_file:
+                with session.get(url, stream=True, timeout=(10, 30)) as response:
+                    response.raise_for_status()
+                    downloaded = 0
 
-                            if data:
-                                temp_file.write(data)
-                                downloaded += len(data)
+                    for data in response.iter_content(chunk_size=8192):
+                        if self.feedback.isCanceled():
+                            raise InterruptedError("Operation canceled by user")
 
-                                if total_size:
-                                    self.feedback.setProgress(int((downloaded / total_size) * 100))
+                        if data:
+                            temp_file.write(data)
+                            downloaded += len(data)
+                            progress_tracker.update_progress(url, downloaded)
+                            QCoreApplication.processEvents()
 
-                                if downloaded % (1024 * 1024) == 0:
-                                    QCoreApplication.processEvents()
+            # Ensure file is closed before moving
+            time.sleep(0.1)  # Small delay to ensure file handle is released
 
-                        if total_size and downloaded != total_size:
-                            raise ValueError(
-                                f"Download incomplete: got {downloaded} bytes, expected {total_size} bytes")
+            if output_file.exists():
+                output_file.unlink()
+            temp_file_path.rename(output_file)
 
-                # Ensure file is closed before moving
-                import time
-                time.sleep(0.1)  # Small delay to ensure file handle is released
-
-                if output_file.exists():
-                    output_file.unlink()
-                temp_file_path.rename(output_file)
-
-                self.logger.info(f"Successfully downloaded: {filename}")
-                return True, str(output_file)
-
-            except Exception as e:
-                self.logger.error(f"Error downloading {url}: {str(e)}")
-                if temp_file_path and temp_file_path.exists():
-                    temp_file_path.unlink()
-                return False, ""
-                self.logger.info(f"Successfully downloaded: {filename}")
-                return True, str(output_file)
+            self.logger.info(f"Downloaded {filename}: {progress_tracker.get_downloaded_mb():.1f} MB")
+            return True, str(output_file)
 
         except Exception as e:
             self.logger.error(f"Error downloading {url}: {str(e)}")
@@ -333,7 +366,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             return False, ""
 
     def download_lidar_database(self, out_dir: Path) -> Optional[Path]:
-        """Download and prepare IGN LiDAR database."""
+        # Initialize a progress tracker for database download
+        progress_tracker = DownloadProgressTracker(self.feedback)
+
         tiles_fn = out_dir / "TA_diff_pkk_lidarhd_classe.shp"
         if tiles_fn.exists():
             self.logger.info("IGN database already exists")
@@ -341,7 +376,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
         self.logger.info("Downloading IGN database...")
         for url in self.DATABASE_URLS:
-            if self.download_file(url, str(out_dir))[0]:
+            # Add progress_tracker parameter here
+            success, _ = self.download_file(url, str(out_dir), progress_tracker, False)
+            if success:
                 break
         else:
             self.logger.error("Failed to download IGN database from all sources")
@@ -483,29 +520,44 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             # Select tiles based on strategy
             selected_tiles = self._select_best_tiles(intersecting_tiles, aoi_geometry, merge_strategy)
 
+            progress_tracker = DownloadProgressTracker(feedback)
             # Download selected tiles
             total_files = len(selected_tiles)
             self.logger.info(f"Starting download of {total_files} tiles...")
             downloaded_files = []
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
-                futures = [
-                    executor.submit(
-                        self.download_file,
-                        feature["url_telech"],
-                        str(downloads_dir),
-                        force_download
-                    )
-                    for feature in selected_tiles
-                ]
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
+                    futures = [
+                        executor.submit(
+                            self.download_file,
+                            feature["url_telech"],
+                            str(downloads_dir),
+                            progress_tracker,
+                            force_download
+                        )
+                        for feature in selected_tiles
+                    ]
 
-                completed = 0
-                for future in concurrent.futures.as_completed(futures):
-                    success, file_path = future.result()
-                    completed += 1
-                    if success and file_path:
-                        downloaded_files.append(file_path)
-                    self.feedback.setProgress(completed * 100 / total_files)
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            success, file_path = future.result()
+                            if success and file_path:
+                                downloaded_files.append(file_path)
+
+                            if self.feedback.isCanceled():
+                                executor.shutdown(wait=False)
+                                break
+                        except Exception as e:
+                            self.logger.error(f"Error processing download result: {str(e)}")
+                            continue
+
+                # Final progress log
+                self.logger.info(
+                    f"Downloaded {progress_tracker.get_downloaded_mb():.1f} MB / {progress_tracker.get_total_size_mb():.1f} MB")
+
+            except Exception as e:
+                self.logger.error(f"Error during concurrent downloads: {str(e)}")
 
             if not downloaded_files:
                 self.logger.warning("No files were successfully downloaded")
