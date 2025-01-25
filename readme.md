@@ -108,7 +108,7 @@ PointCloudFR relies on a comprehensive database of LiDAR HD IGN tiles distributi
 
 ## 📝 License
 
-MIT © [Samy KHELIL]
+GNU © [Samy KHELIL]
 
 ---
 <p align="center">
