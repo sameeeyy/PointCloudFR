@@ -143,7 +143,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     ]
 
     DATABASE_URLS = [
-        "https://zenodo.org/records/13793544/files/grille.zip",
+        "https://zenodo.org/records/14867452/files/TA_MAJ.zip",
         "https://diffusion-lidarhd-classe.ign.fr/download/lidar/shp/classe"
     ]
 
@@ -369,7 +369,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         # Initialize a progress tracker for database download
         progress_tracker = DownloadProgressTracker(self.feedback)
 
-        tiles_fn = out_dir / "TA_diff_pkk_lidarhd_classe.shp"
+        tiles_fn = out_dir / "TA_MAJ" / "TA_diff_pkk_lidarhd_classe.shp"
         if tiles_fn.exists():
             self.logger.info("IGN database already exists")
             return tiles_fn
@@ -385,7 +385,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             return None
 
         # Extract database
-        if not self.extract_zip(out_dir / "grille.zip", out_dir):
+        if not self.extract_zip(out_dir / "TA_MAJ.zip", out_dir):
             return None
 
         if not tiles_fn.exists():
@@ -531,7 +531,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                     futures = [
                         executor.submit(
                             self.download_file,
-                            feature["url_telech"],
+                            feature["url"],
                             str(downloads_dir),
                             progress_tracker,
                             force_download
