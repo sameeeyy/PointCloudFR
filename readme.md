@@ -98,7 +98,7 @@ Found a bug? Have a suggestion? Contributions are welcome!
 
 ## Data Source 📊
 
-PointCloudFR is powered by LiDAR HD data originally created by the French National Geographic Institute (IGN). This dataset, which represents the comprehensive LiDAR HD tiles distribution, is hosted by  on Zenodo.
+PointCloudFR is powered by LiDAR HD data originally created by the French National Geographic Institute (IGN). This dataset, which represents the comprehensive LiDAR HD tiles distribution, is hosted on Zenodo.
 
 * **Database Title**: ableau d'assemblage des dalles des nuages des points classées de l'IGN (données complémentaire pour le plugin PointCloudFR)  
 * **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)  
