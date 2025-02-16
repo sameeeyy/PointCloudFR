@@ -180,8 +180,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         - Download All (No Merge): Get all raw tiles for custom processing
         - Merge All Intersecting: Combines all intersecting tiles
         - Use Most Coverage: Selects the tile with maximum overlap
-
-        Version: 1.0.0
+        
         Copyright © 2024-2025 Samy KHELIL
         Released under GNU General Public License v3
         Repository: https://github.com/sameeeyy/PointCloudFR
