@@ -117,10 +117,10 @@ class DependencyInstaller:
             None,
             "Missing Dependencies",
             message,
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        return reply == QMessageBox.Yes
+        return reply == QMessageBox.StandardButton.Yes
 
     def _install_package(self, package):
         """Install a single package using multiple methods."""

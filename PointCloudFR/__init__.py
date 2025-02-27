@@ -189,11 +189,11 @@ class DependencyInstaller:
                 None,
                 "Missing Dependencies",
                 message,
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
 
-            if reply == QMessageBox.No:
+            if reply == QMessageBox.StandardButton.No:
                 return False
 
             try:
@@ -258,21 +258,21 @@ class DependencyInstaller:
 def show_error_message(message: str, title: str = "Error"):
     """Show error message to user."""
     msg = QMessageBox()
-    msg.setIcon(QMessageBox.Critical)
+    msg.setIcon(QMessageBox.Icon.Critical)
     msg.setText(title)
     msg.setInformativeText(message)
     msg.setWindowTitle("PointCloudFR Error")
-    msg.exec_()
+    msg.exec()
 
 
 def show_info_message(message: str, title: str = "Information"):
     """Show information message to user."""
     msg = QMessageBox()
-    msg.setIcon(QMessageBox.Information)
+    msg.setIcon(QMessageBox.Icon.Information)
     msg.setText(title)
     msg.setInformativeText(message)
     msg.setWindowTitle("PointCloudFR")
-    msg.exec_()
+    msg.exec()
 
 
 class LidarPlugin:
