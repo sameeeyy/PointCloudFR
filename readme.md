@@ -103,7 +103,7 @@ PointCloudFR is powered by LiDAR HD data originally created by the French Nation
 * **Database Title**: ableau d'assemblage des dalles des nuages des points classées de l'IGN (données complémentaire pour le plugin PointCloudFR)  
 * **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)  
 * **Data Host/Maintainer**: Samy KHELIL
-* **Update date**: 14/02/2025 
+* **Update date**: 14/02/2025
 * **Publisher**: Zenodo  
 * [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14867452.svg)](https://doi.org/10.5281/zenodo.14867452)
 
