@@ -1,7 +1,8 @@
 # lidar_provider.py
 from qgis.core import QgsProcessingProvider, QgsMessageLog, Qgis
 from qgis.PyQt.QtGui import QIcon
-import os
+from pathlib import Path
+
 from .lidar_algorithm import LidarDownloaderAlgorithm as PointCloudFRAlgorithm
 
 class LidarProcessingProvider(QgsProcessingProvider):
@@ -17,7 +18,7 @@ class LidarProcessingProvider(QgsProcessingProvider):
 
     def icon(self):
         """Returns the provider icon."""
-        return QIcon(":/plugins/PointCloudFR/icon.png")
+        return QIcon(str(Path(__file__).parent / "icon.png"))
 
     def loadAlgorithms(self):
         QgsMessageLog.logMessage("Loading algorithms", 'PointCloudFR', Qgis.Info)

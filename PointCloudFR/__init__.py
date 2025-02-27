@@ -12,7 +12,6 @@ import locale
 import importlib.metadata
 import importlib.util
 import subprocess
-from . import resources
 
 # Plugin version
 VERSION = "1.0.0"
