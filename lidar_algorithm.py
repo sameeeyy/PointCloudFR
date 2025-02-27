@@ -166,12 +166,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     def displayName(self):
         return self.tr('Download LiDAR datas')
 
-    def group(self):
-        return self.tr('PointCloudFR')
-
-    def groupId(self):
-        return 'PointCloudfr'
-
     def shortHelpString(self):
         return self.tr("""
         Downloads French IGN LiDAR HD tiles that intersect with the input Area of Interest (AOI).
