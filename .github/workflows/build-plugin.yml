@@ -19,6 +19,15 @@ jobs:
         uses: pre-commit/action@v3.0.1  
         continue-on-error: true
 
+      - name: Commit changes made by pre-commit
+        if: always()
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add -A
+          git diff --quiet && git diff --staged --quiet || git commit -m "Fix formatting issues with pre-commit"
+          git push
+
       - name: Install build dependencies
         run: python -m pip install setuptools_scm
         
