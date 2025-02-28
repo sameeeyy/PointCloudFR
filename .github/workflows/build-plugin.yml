@@ -30,11 +30,17 @@ jobs:
     - name: Build QGIS plugin
       run: python setup.py build .
     
+    - name: Extract plugin version
+      id: plugin_version
+      run: |
+        VERSION=$(grep "version=" */metadata.txt | cut -d= -f2 | tr -d '[:space:]')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
     # Always upload as an artifact
-    - name: Upload artifact
+    - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
-        name: qgis-plugin
+        name: qgis-plugin-${{ steps.plugin_version.outputs.version }}
         path: dist/*.zip
         if-no-files-found: error
     
