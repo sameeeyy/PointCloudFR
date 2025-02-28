@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Required for setuptools_scm version detection
+        fetch-depth: 0
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -27,16 +27,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools_scm
     
-    - name: Update metadata version
-      run: python setup.py update .
-    
     - name: Build QGIS plugin
-      run: python setup.py build . --update
-    
-    - name: Rename output file
-      run: |
-        mkdir -p dist
-        mv dist/PointCloudFR-*.zip dist/PointCloudFR.zip
+      run: python setup.py build .
     
     - name: Extract plugin version
       id: plugin_version
@@ -44,16 +36,18 @@ jobs:
         VERSION=$(grep "version=" */metadata.txt | cut -d= -f2 | tr -d '[:space:]')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
+    # Always upload as an artifact
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
-        name: PointCloudFR-${{ steps.plugin_version.outputs.version }}
-        path: dist/PointCloudFR.zip
+        name: qgis-plugin-${{ steps.plugin_version.outputs.version }}
+        path: dist/*.zip
         if-no-files-found: error
     
+    # Only create a release when a tag is pushed
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/PointCloudFR.zip
+        files: dist/*.zip
         generate_release_notes: true
