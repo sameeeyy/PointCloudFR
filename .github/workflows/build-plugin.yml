@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-        fetch-depth: 0
+        fetch-depth: 0  # Required for setuptools_scm version detection
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -28,24 +28,15 @@ jobs:
         pip install setuptools_scm
     
     - name: Update metadata version
-      if: startsWith(github.ref, 'refs/tags/')
-      run: |
-        TAG_VERSION=${GITHUB_REF#refs/tags/v}
-        python setup.py update .
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add */metadata.txt
-        git commit -m "Update version to $TAG_VERSION in metadata.txt"
-        git push
+      run: python setup.py update .
     
     - name: Build QGIS plugin
-      run: |
-        python setup.py build . -d dist -b build
+      run: python setup.py build . --update
     
-    - name: Rename ZIP file
+    - name: Rename output file
       run: |
-        VERSION=$(grep "version=" */metadata.txt | cut -d= -f2 | tr -d '[:space:]')
-        mv dist/*-${VERSION}.zip dist/PointCloudFR-${VERSION}.zip
+        mkdir -p dist
+        mv dist/PointCloudFR-*.zip dist/PointCloudFR.zip
     
     - name: Extract plugin version
       id: plugin_version
@@ -53,18 +44,16 @@ jobs:
         VERSION=$(grep "version=" */metadata.txt | cut -d= -f2 | tr -d '[:space:]')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
-    # Always upload as an artifact
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: PointCloudFR-${{ steps.plugin_version.outputs.version }}
-        path: dist/PointCloudFR-*.zip
+        path: dist/PointCloudFR.zip
         if-no-files-found: error
     
-    # Only create a release when a tag is pushed
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/PointCloudFR-*.zip
+        files: dist/PointCloudFR.zip
         generate_release_notes: true
