@@ -1,4 +1,4 @@
-@ECHO OFF 
+@ECHO OFF
 
 set OSGEO4W_ROOT=C:\Program Files\QGIS 3.26.2
 

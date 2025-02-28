@@ -1,43 +1,38 @@
-from pathlib import Path
-from typing import Optional, Tuple, List, Dict
 import concurrent.futures
-import tempfile
-import uuid
-import os
-import zipfile
-import logging
-from datetime import datetime
 import threading
 import time
+import uuid
+import zipfile
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional, Tuple
 
-from qgis.PyQt.QtCore import QCoreApplication
+import processing
+import requests
 from qgis.core import (
+    Qgis,
+    QgsCoordinateTransform,
+    QgsFeature,
+    QgsFeatureRequest,
+    QgsGeometry,
+    QgsMessageLog,
+    QgsPointCloudClassifiedRenderer,
+    QgsPointCloudLayer,
     QgsProcessing,
     QgsProcessingAlgorithm,
+    QgsProcessingOutputFile,
+    QgsProcessingOutputFolder,
+    QgsProcessingOutputString,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterFolderDestination,
     QgsProcessingParameterNumber,
-    QgsProcessingParameterBoolean,
-    QgsProcessingParameterEnum,
-    QgsPointCloudLayer,
     QgsProject,
-    QgsPointCloudClassifiedRenderer,
-    QgsVectorLayer,
-    QgsFeature,
-    QgsGeometry,
     QgsSpatialIndex,
-    QgsFeatureRequest,
-    QgsCoordinateTransform,
-    QgsCoordinateReferenceSystem,
-    QgsRectangle,
-    Qgis,
-    QgsMessageLog,
-    QgsProcessingOutputFile,
-    QgsProcessingOutputFolder,
-    QgsProcessingOutputString
+    QgsVectorLayer,
 )
-import processing
-import requests
+from qgis.PyQt.QtCore import QCoreApplication
 from requests.adapters import HTTPAdapter, Retry
 
 
@@ -61,14 +56,14 @@ class DownloadProgressTracker:
         """Update progress for a specific file."""
         with self._lock:
             # Calculate the difference from last known progress
-            previous = getattr(self, f'_last_{url}', 0)
+            previous = getattr(self, f"_last_{url}", 0)
             difference = bytes_downloaded - previous
 
             # Update the total downloaded size
             self.downloaded += difference
 
             # Store the new progress
-            setattr(self, f'_last_{url}', bytes_downloaded)
+            setattr(self, f"_last_{url}", bytes_downloaded)
 
             # Calculate and set overall progress
             if self.total_size > 0:
@@ -83,6 +78,7 @@ class DownloadProgressTracker:
         """Get downloaded size in megabytes."""
         return self.downloaded / (1024 * 1024)
 
+
 class LidarLogger:
     """Custom logger for LiDAR operations"""
 
@@ -92,35 +88,38 @@ class LidarLogger:
         self.log_file = None
 
         if log_to_file:
-            log_dir = Path.home() / '.qgis' / 'lidar_logs'
+            log_dir = Path.home() / ".qgis" / "lidar_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
-            self.log_file = log_dir / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+            self.log_file = (
+                log_dir
+                / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+            )
 
     def info(self, message: str):
         """Log info message"""
         self.feedback.pushInfo(message)
-        QgsMessageLog.logMessage(message, 'PointCloudFR', Qgis.Info)
-        self._write_to_file('INFO', message)
+        QgsMessageLog.logMessage(message, "PointCloudFR", Qgis.Info)
+        self._write_to_file("INFO", message)
 
     def error(self, message: str):
         """Log error message"""
         self.feedback.reportError(message)
-        QgsMessageLog.logMessage(message, 'PointCloudFR', Qgis.Critical)
-        self._write_to_file('ERROR', message)
+        QgsMessageLog.logMessage(message, "PointCloudFR", Qgis.Critical)
+        self._write_to_file("ERROR", message)
 
     def warning(self, message: str):
         """Log warning message"""
         self.feedback.pushWarning(message)
-        QgsMessageLog.logMessage(message, 'PointCloudFR', Qgis.Warning)
-        self._write_to_file('WARNING', message)
+        QgsMessageLog.logMessage(message, "PointCloudFR", Qgis.Warning)
+        self._write_to_file("WARNING", message)
 
     def _write_to_file(self, level: str, message: str):
         """Write log message to file if enabled"""
         if self.log_to_file and self.log_file:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             try:
-                with open(self.log_file, 'a', encoding='utf-8') as f:
-                    f.write(f'{timestamp} [{level}] {message}\n')
+                with open(self.log_file, "a", encoding="utf-8") as f:
+                    f.write(f"{timestamp} [{level}] {message}\n")
             except Exception as e:
                 self.feedback.reportError(f"Failed to write to log file: {str(e)}")
 
@@ -129,22 +128,22 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     """QGIS Processing algorithm for downloading LiDAR tiles using native QGIS APIs."""
 
     # Constants for parameters
-    INPUT = 'INPUT'
-    OUTPUT_FOLDER = 'OUTPUT_FOLDER'
-    MAX_DOWNLOADS = 'MAX_DOWNLOADS'
-    FORCE_DOWNLOAD = 'FORCE_DOWNLOAD'
-    MERGE_STRATEGY = 'MERGE_STRATEGY'
-    LOAD_LAYER = 'LOAD_LAYER'
+    INPUT = "INPUT"
+    OUTPUT_FOLDER = "OUTPUT_FOLDER"
+    MAX_DOWNLOADS = "MAX_DOWNLOADS"
+    FORCE_DOWNLOAD = "FORCE_DOWNLOAD"
+    MERGE_STRATEGY = "MERGE_STRATEGY"
+    LOAD_LAYER = "LOAD_LAYER"
 
     STRATEGY_OPTIONS = [
-        'Download All (No Merge)',
-        'Merge All Intersecting',
-        'Use Most Coverage'
+        "Download All (No Merge)",
+        "Merge All Intersecting",
+        "Use Most Coverage",
     ]
 
     DATABASE_URLS = [
         "https://zenodo.org/records/14867452/files/TA_MAJ.zip",
-        "https://diffusion-lidarhd-classe.ign.fr/download/lidar/shp/classe"
+        "https://diffusion-lidarhd-classe.ign.fr/download/lidar/shp/classe",
     ]
 
     def __init__(self):
@@ -155,36 +154,32 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
     def tr(self, string):
         """Returns a translatable string with the self.tr() function."""
-        return QCoreApplication.translate('Processing', string)
+        return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
         return LidarDownloaderAlgorithm()
 
     def name(self):
-        return 'download'
+        return "download"
 
     def displayName(self):
-        return self.tr('Download LiDAR datas')
-
-    def group(self):
-        return self.tr('PointCloudFR')
-
-    def groupId(self):
-        return 'PointCloudfr'
+        return self.tr("Download LiDAR datas")
 
     def shortHelpString(self):
-        return self.tr("""
+        return self.tr(
+            """
         Downloads French IGN LiDAR HD tiles that intersect with the input Area of Interest (AOI).
 
         Available processing strategies:
         - Download All (No Merge): Get all raw tiles for custom processing
         - Merge All Intersecting: Combines all intersecting tiles
         - Use Most Coverage: Selects the tile with maximum overlap
-        
+
         Copyright © 2024-2025 Samy KHELIL
         Released under GNU General Public License v3
         Repository: https://github.com/sameeeyy/PointCloudFR
-        """)
+        """
+        )
 
     def initAlgorithm(self, config=None):
         """Initialize the algorithm parameters."""
@@ -192,16 +187,15 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
-                self.tr('Input AOI layer'),
-                [QgsProcessing.TypeVectorPolygon]
+                self.tr("Input AOI layer"),
+                [QgsProcessing.TypeVectorPolygon],
             )
         )
 
         # Output folder
         self.addParameter(
             QgsProcessingParameterFolderDestination(
-                self.OUTPUT_FOLDER,
-                self.tr('Output folder')
+                self.OUTPUT_FOLDER, self.tr("Output folder")
             )
         )
 
@@ -209,12 +203,12 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.MAX_DOWNLOADS,
-                self.tr('Maximum concurrent downloads'),
+                self.tr("Maximum concurrent downloads"),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=4,
                 minValue=1,
                 maxValue=10,
-                optional=False
+                optional=False,
             )
         )
 
@@ -222,9 +216,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.MERGE_STRATEGY,
-                self.tr('Strategy for multiple tiles'),
+                self.tr("Strategy for multiple tiles"),
                 options=self.STRATEGY_OPTIONS,
-                defaultValue=0
+                defaultValue=0,
             )
         )
 
@@ -232,8 +226,8 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.LOAD_LAYER,
-                self.tr('Load point cloud layer after download'),
-                defaultValue=True
+                self.tr("Load point cloud layer after download"),
+                defaultValue=True,
             )
         )
 
@@ -241,31 +235,25 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.FORCE_DOWNLOAD,
-                self.tr('Force download (ignore existing files)'),
-                defaultValue=False
+                self.tr("Force download (ignore existing files)"),
+                defaultValue=False,
             )
         )
 
         # Add output definitions
         self.addOutput(
             QgsProcessingOutputFolder(
-                'OUTPUT_DIRECTORY',
-                self.tr('Directory containing LiDAR data')
+                "OUTPUT_DIRECTORY", self.tr("Directory containing LiDAR data")
             )
         )
 
-        self.addOutput(
-            QgsProcessingOutputFile(
-                'OUTPUT_FILE',
-                self.tr('LiDAR file')
-            )
-        )
+        self.addOutput(QgsProcessingOutputFile("OUTPUT_FILE", self.tr("LiDAR file")))
 
         # Add multi-file output for iteration
         self.addOutput(
             QgsProcessingOutputString(
-                'OUTPUT_FILES',
-                self.tr('LiDAR files for iteration (semicolon separated)')
+                "OUTPUT_FILES",
+                self.tr("LiDAR files for iteration (semicolon separated)"),
             )
         )
 
@@ -298,8 +286,13 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             self.logger.error(f"Error loading point cloud layer: {str(e)}")
             return False
 
-    def download_file(self, url: str, output_path: str, progress_tracker: DownloadProgressTracker,
-                      force_download: bool = False) -> Tuple[bool, str]:
+    def download_file(
+        self,
+        url: str,
+        output_path: str,
+        progress_tracker: DownloadProgressTracker,
+        force_download: bool = False,
+    ) -> Tuple[bool, str]:
         """Download file with consolidated progress tracking."""
         output_path = Path(output_path)
         temp_file_path = None
@@ -307,17 +300,23 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         try:
             # Get filename and check existing file
             with requests.head(url, timeout=10) as response:
-                content_length = int(response.headers.get('content-length', 0))
+                content_length = int(response.headers.get("content-length", 0))
                 filename = (
-                        response.headers.get("content-disposition", "").split("filename=")[-1].strip('"') or
-                        url.split("/")[-1]
+                    response.headers.get("content-disposition", "")
+                    .split("filename=")[-1]
+                    .strip('"')
+                    or url.split("/")[-1]
                 )
 
                 # Add file to progress tracker
                 progress_tracker.add_file(url, content_length)
 
             output_file = output_path / filename
-            if output_file.exists() and not force_download and output_file.stat().st_size > 0:
+            if (
+                output_file.exists()
+                and not force_download
+                and output_file.stat().st_size > 0
+            ):
                 self.logger.info(f"File already exists and appears valid: {filename}")
                 # Update progress tracker for skipped file
                 progress_tracker.update_progress(url, content_length)
@@ -325,15 +324,17 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
             # Configure session with retries
             session = requests.Session()
-            retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
-            session.mount('http://', HTTPAdapter(max_retries=retries))
-            session.mount('https://', HTTPAdapter(max_retries=retries))
+            retries = Retry(
+                total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]
+            )
+            session.mount("http://", HTTPAdapter(max_retries=retries))
+            session.mount("https://", HTTPAdapter(max_retries=retries))
 
             # Download with progress tracking
             temp_file_path = output_path / f"download_{uuid.uuid4().hex}"
 
             self.logger.info(f"Downloading from {url}")
-            with open(temp_file_path, 'wb') as temp_file:
+            with open(temp_file_path, "wb") as temp_file:
                 with session.get(url, stream=True, timeout=(10, 30)) as response:
                     response.raise_for_status()
                     downloaded = 0
@@ -355,7 +356,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                 output_file.unlink()
             temp_file_path.rename(output_file)
 
-            self.logger.info(f"Downloaded {filename}: {progress_tracker.get_downloaded_mb():.1f} MB")
+            self.logger.info(
+                f"Downloaded {filename}: {progress_tracker.get_downloaded_mb():.1f} MB"
+            )
             return True, str(output_file)
 
         except Exception as e:
@@ -397,7 +400,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         """Extract zip file with error handling."""
         try:
             self.logger.info(f"Extracting {zip_path} to {extract_path}")
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(extract_path)
             self.logger.info("Extraction successful")
             return True
@@ -420,7 +423,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             for feature in self._tiles_layer.getFeatures():
                 self._spatial_index.addFeature(feature)
 
-            self.logger.info(f"Successfully loaded database with {feature_count} features")
+            self.logger.info(
+                f"Successfully loaded database with {feature_count} features"
+            )
             return True
 
         except Exception as e:
@@ -444,7 +449,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                 if feature.geometry().intersects(aoi_geometry):
                     intersecting_features.append(feature)
 
-            self.logger.info(f"Confirmed {len(intersecting_features)} intersecting tiles")
+            self.logger.info(
+                f"Confirmed {len(intersecting_features)} intersecting tiles"
+            )
             return intersecting_features
 
         except Exception as e:
@@ -460,10 +467,16 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
             # Get and validate parameters
             source = self.parameterAsSource(parameters, self.INPUT, context)
-            output_folder = Path(self.parameterAsString(parameters, self.OUTPUT_FOLDER, context))
+            output_folder = Path(
+                self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
+            )
             max_downloads = self.parameterAsInt(parameters, self.MAX_DOWNLOADS, context)
-            force_download = self.parameterAsBool(parameters, self.FORCE_DOWNLOAD, context)
-            merge_strategy = self.parameterAsEnum(parameters, self.MERGE_STRATEGY, context)
+            force_download = self.parameterAsBool(
+                parameters, self.FORCE_DOWNLOAD, context
+            )
+            merge_strategy = self.parameterAsEnum(
+                parameters, self.MERGE_STRATEGY, context
+            )
             load_layer = self.parameterAsBool(parameters, self.LOAD_LAYER, context)
 
             # Log processing parameters
@@ -471,7 +484,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             self.logger.info(f"- Output folder: {output_folder}")
             self.logger.info(f"- Max concurrent downloads: {max_downloads}")
             self.logger.info(f"- Force download: {force_download}")
-            self.logger.info(f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}")
+            self.logger.info(
+                f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}"
+            )
             self.logger.info(f"- Load layer after download: {load_layer}")
 
             # Create directory structure
@@ -503,21 +518,24 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
             # Transform geometry if needed
             if source_crs != target_crs:
-                self.logger.info(f"Transforming geometry from {source_crs.authid()} to {target_crs.authid()}")
-                transform = QgsCoordinateTransform(source_crs, target_crs, QgsProject.instance())
+                self.logger.info(
+                    f"Transforming geometry from {source_crs.authid()} to {target_crs.authid()}"
+                )
+                transform = QgsCoordinateTransform(
+                    source_crs, target_crs, QgsProject.instance()
+                )
                 aoi_geometry.transform(transform)
 
             # Find and process intersecting tiles
             intersecting_tiles = self._find_intersecting_tiles(aoi_geometry)
             if not intersecting_tiles:
                 self.logger.info("No LiDAR tiles found intersecting with AOI")
-                return {
-                    'OUTPUT_DIRECTORY': str(downloads_dir),
-                    'OUTPUT_FILES': []
-                }
+                return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": []}
 
             # Select tiles based on strategy
-            selected_tiles = self._select_best_tiles(intersecting_tiles, aoi_geometry, merge_strategy)
+            selected_tiles = self._select_best_tiles(
+                intersecting_tiles, aoi_geometry, merge_strategy
+            )
 
             progress_tracker = DownloadProgressTracker(feedback)
             # Download selected tiles
@@ -526,14 +544,16 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             downloaded_files = []
 
             try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
+                with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=max_downloads
+                ) as executor:
                     futures = [
                         executor.submit(
                             self.download_file,
                             feature["url"],
                             str(downloads_dir),
                             progress_tracker,
-                            force_download
+                            force_download,
                         )
                         for feature in selected_tiles
                     ]
@@ -548,93 +568,108 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                                 executor.shutdown(wait=False)
                                 break
                         except Exception as e:
-                            self.logger.error(f"Error processing download result: {str(e)}")
+                            self.logger.error(
+                                f"Error processing download result: {str(e)}"
+                            )
                             continue
 
                 # Final progress log
                 self.logger.info(
-                    f"Downloaded {progress_tracker.get_downloaded_mb():.1f} MB / {progress_tracker.get_total_size_mb():.1f} MB")
+                    f"Downloaded {progress_tracker.get_downloaded_mb():.1f} MB / {progress_tracker.get_total_size_mb():.1f} MB"
+                )
 
             except Exception as e:
                 self.logger.error(f"Error during concurrent downloads: {str(e)}")
 
             if not downloaded_files:
                 self.logger.warning("No files were successfully downloaded")
-                return {
-                    'OUTPUT_DIRECTORY': str(downloads_dir),
-                    'OUTPUT_FILES': []
-                }
+                return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": []}
 
             # Process output based on strategy
             if merge_strategy == 0:  # Download All (No Merge)
-                self.logger.info(f"Strategy: Download All - Returning {len(downloaded_files)} files")
+                self.logger.info(
+                    f"Strategy: Download All - Returning {len(downloaded_files)} files"
+                )
                 if load_layer:
                     for file_path in downloaded_files:
                         self.load_point_cloud_layer(file_path)
                 return {
-                    'OUTPUT_DIRECTORY': str(downloads_dir),
-                    'OUTPUT_FILE': downloaded_files[0],  # First file for compatibility
-                    'OUTPUT_FILES': ';'.join(downloaded_files)  # All files for iteration
+                    "OUTPUT_DIRECTORY": str(downloads_dir),
+                    "OUTPUT_FILE": downloaded_files[0],  # First file for compatibility
+                    "OUTPUT_FILES": ";".join(
+                        downloaded_files
+                    ),  # All files for iteration
                 }
 
             elif merge_strategy == 1:  # Merge All Intersecting
-                self.logger.info(f"Strategy: Merge All - Merging {len(downloaded_files)} files")
-                merged_output = str(downloads_dir / 'merged_output.laz')
+                self.logger.info(
+                    f"Strategy: Merge All - Merging {len(downloaded_files)} files"
+                )
+                merged_output = str(downloads_dir / "merged_output.laz")
 
                 try:
                     result = processing.run(
                         "pdal:merge",
                         {
-                            'LAYERS': [f'copc://{path}' for path in downloaded_files],
-                            'FILTER_EXPRESSION': '',
-                            'FILTER_EXTENT': None,
-                            'OUTPUT': merged_output
+                            "LAYERS": [f"copc://{path}" for path in downloaded_files],
+                            "FILTER_EXPRESSION": "",
+                            "FILTER_EXTENT": None,
+                            "OUTPUT": merged_output,
                         },
-                        feedback=self.feedback
+                        feedback=self.feedback,
                     )
 
-                    if result and 'OUTPUT' in result:
-                        self.logger.info(f"Successfully merged files to: {result['OUTPUT']}")
+                    if result and "OUTPUT" in result:
                         self.logger.info(
-                            "Note: Auto-loading is disabled for merged files. To visualize, manually drag and drop the file into QGIS from:")
+                            f"Successfully merged files to: {result['OUTPUT']}"
+                        )
+                        self.logger.info(
+                            "Note: Auto-loading is disabled for merged files. To visualize, manually drag and drop the file into QGIS from:"
+                        )
                         self.logger.info(f"Path: {result['OUTPUT']}")
                         return {
-                            'OUTPUT_DIRECTORY': str(downloads_dir),
-                            'OUTPUT_FILE': result['OUTPUT']
+                            "OUTPUT_DIRECTORY": str(downloads_dir),
+                            "OUTPUT_FILE": result["OUTPUT"],
                         }
                     else:
-                        self.logger.warning("Merge operation failed - using first file as fallback")
+                        self.logger.warning(
+                            "Merge operation failed - using first file as fallback"
+                        )
                         return {
-                            'OUTPUT_DIRECTORY': str(downloads_dir),
-                            'OUTPUT_FILE': downloaded_files[0]
+                            "OUTPUT_DIRECTORY": str(downloads_dir),
+                            "OUTPUT_FILE": downloaded_files[0],
                         }
 
                 except Exception as e:
                     self.logger.error(f"Error during merge operation: {str(e)}")
                     self.logger.info("Using first downloaded file as fallback")
                     return {
-                        'OUTPUT_DIRECTORY': str(downloads_dir),
-                        'OUTPUT_FILE': downloaded_files[0]
+                        "OUTPUT_DIRECTORY": str(downloads_dir),
+                        "OUTPUT_FILE": downloaded_files[0],
                     }
 
             else:  # Use Most Coverage or single file
-                output_file = downloaded_files[0] if downloaded_files else ''
-                self.logger.info(f"Strategy: Most Coverage - Selected file: {output_file}")
+                output_file = downloaded_files[0] if downloaded_files else ""
+                self.logger.info(
+                    f"Strategy: Most Coverage - Selected file: {output_file}"
+                )
                 if load_layer and output_file:
                     self.load_point_cloud_layer(output_file)
                 return {
-                    'OUTPUT_DIRECTORY': str(downloads_dir),
-                    'OUTPUT_FILE': output_file
+                    "OUTPUT_DIRECTORY": str(downloads_dir),
+                    "OUTPUT_FILE": output_file,
                 }
 
         except Exception as e:
             self.logger.error(f"Error in main processing: {str(e)}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return {}
 
-    def _select_best_tiles(self, tiles: List[QgsFeature], aoi_geometry: QgsGeometry,
-                           strategy: int) -> List[QgsFeature]:
+    def _select_best_tiles(
+        self, tiles: List[QgsFeature], aoi_geometry: QgsGeometry, strategy: int
+    ) -> List[QgsFeature]:
         """Select tiles based on strategy with improved logging."""
         if not tiles:
             self.logger.warning("No tiles provided for selection")
@@ -645,7 +680,9 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
             return tiles
 
         if strategy in (0, 1):  # Download All or Merge All
-            self.logger.info(f"Using all {len(tiles)} tiles (strategy: {self.STRATEGY_OPTIONS[strategy]})")
+            self.logger.info(
+                f"Using all {len(tiles)} tiles (strategy: {self.STRATEGY_OPTIONS[strategy]})"
+            )
             return tiles
 
         # Use Most Coverage (strategy == 2)
@@ -660,13 +697,17 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
                 if area > max_area:
                     max_area = area
                     best_tile = tile
-                    self.logger.info(f"New best tile found - intersection area: {area:.2f}")
+                    self.logger.info(
+                        f"New best tile found - intersection area: {area:.2f}"
+                    )
 
             if best_tile:
                 self.logger.info("Selected tile with maximum intersection area")
                 return [best_tile]
 
-            self.logger.warning("No valid intersection found - falling back to first tile")
+            self.logger.warning(
+                "No valid intersection found - falling back to first tile"
+            )
             return tiles[:1]
 
         except Exception as e:

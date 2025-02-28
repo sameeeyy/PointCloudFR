@@ -1,1 +1,35 @@
-SuPy.log
+# back-up files
+*~
+*.bak
+*.orig
+.history
+**/.legacy/*
+
+# compiled python files
+*.py[cod]
+*.egg-info
+.eggs/*
+
+# debugger files
+*.pdb
+*.ilk
+
+# log files
+*.log
+
+# binary directory
+__pycache__*
+build*
+dist/*
+**/__version__.py
+
+# IDE config
+*.kdev*
+.kdev*
+.vscode*
+.atom*
+.idea*
+
+# OS temp
+.DS_Store
+.ini

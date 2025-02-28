@@ -22,6 +22,14 @@ PointCloudFR is a QGIS plugin that streamlines the process of downloading and pr
 
 ## 🚀 Installation
 
+### Directly from QGIS
+   - Open QGIS
+   - Go to `Plugins → Manage and Install Plugins → All`
+   - Search & select `PointCloudFR`
+   - Click `Install Plugin`
+   
+### From GitHub artifacts
+
 1. **Download Plugin**
    - Download `PointCloudFR.zip` from the [releases page](https://github.com/sameeeyy/PointCloudFR/releases)
    - Or clone and zip the repository:
@@ -42,6 +50,20 @@ PointCloudFR is a QGIS plugin that streamlines the process of downloading and pr
    - Open the Processing Toolbox (`Processing → Toolbox`)
    - You should see `PointCloudFR` in the algorithm list
    - A welcome message will appear on first installation
+
+### From Sources
+
+1. **Clone this repo**
+```sh
+git clone https://github.com/sameeeyy/PointCloudFR
+cd PointCloudFR
+# regular install
+python -m setup.py install -fu .
+# install as editable
+python -m setup.py install -feu .
+# or package zip (see install from artifacts)
+python -m setup.py build -u .
+```
 
 ## 🚀 Quick Start
 
@@ -103,7 +125,7 @@ PointCloudFR is powered by LiDAR HD data originally created by the French Nation
 * **Database Title**: ableau d'assemblage des dalles des nuages des points classées de l'IGN (données complémentaire pour le plugin PointCloudFR)  
 * **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)  
 * **Data Host/Maintainer**: Samy KHELIL
-* **Update date**: 14/02/2025 
+* **Update date**: 14/02/2025
 * **Publisher**: Zenodo  
 * [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14867452.svg)](https://doi.org/10.5281/zenodo.14867452)
 
