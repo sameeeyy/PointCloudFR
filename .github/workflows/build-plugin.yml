@@ -27,7 +27,7 @@ jobs:
           pip install setuptools_scm
         
       - name: Build the QGIS plugin
-        run: python setup.py build .
+        run: python setup.py build -u -d dist .
           
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
