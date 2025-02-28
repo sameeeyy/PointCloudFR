@@ -1,12 +1,6 @@
 name: Build and Deploy QGIS Plugin
 
-on:
-  push:
-    branches: [ main, master ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ main, master ]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -20,25 +14,27 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install setuptools_scm
+      
+      - name: Format code base
+        uses: pre-commit/action@v3.0.1  
+        continue-on-error: true
+
+      - name: Install build dependencies
+        run: python -m pip install setuptools_scm
         
       - name: Build the QGIS plugin
-        run: python setup.py build .
+        run: python setup.py build -u -d dist .
           
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PointCloudFR-plugin
           path: dist/*.zip
           if-no-files-found: error
-          
+      
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*.zip
-          generate_release_notes: true
+          generate_release_notes: true 
+      
