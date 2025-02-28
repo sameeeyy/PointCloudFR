@@ -25,9 +25,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install setuptools_scm
-          
-      - name: Update QGIS plugin
-        run: python setup.py update .
         
       - name: Build the QGIS plugin
         run: python setup.py build .
