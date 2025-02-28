@@ -27,20 +27,29 @@ jobs:
           pip install setuptools_scm
           
       - name: Build QGIS plugin
-        run: python setup.py build .
+        id: build
+        run: |
+          plugin_zip=$(python setup.py build . | grep -o 'dist/[^ ]*\.zip' | head -1)
+          echo "plugin_file=${plugin_zip}" >> $GITHUB_OUTPUT
+          echo "plugin_filename=$(basename ${plugin_zip})" >> $GITHUB_OUTPUT
         
-      # Upload the ZIP files directly, not the directory
+      # Extract the ZIP first to prevent double-zipping
+      - name: Extract ZIP for artifact
+        run: |
+          mkdir -p extracted
+          unzip "${{ steps.build.outputs.plugin_file }}" -d extracted/
+          
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PointCloudFR-plugin
-          path: dist/*.zip
+          name: PointCloudFR-plugin-files
+          path: extracted/
           if-no-files-found: error
           
-      # For releases, use the already zipped file
+      # For releases, use the original ZIP file
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.zip
+          files: ${{ steps.build.outputs.plugin_file }}
           generate_release_notes: true
