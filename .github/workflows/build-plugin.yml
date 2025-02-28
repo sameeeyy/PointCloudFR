@@ -27,8 +27,25 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools_scm
     
+    - name: Update metadata version
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        python setup.py update .
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add */metadata.txt
+        git commit -m "Update version to $TAG_VERSION in metadata.txt"
+        git push
+    
     - name: Build QGIS plugin
-      run: python setup.py build .
+      run: |
+        python setup.py build . -d dist -b build
+    
+    - name: Rename ZIP file
+      run: |
+        VERSION=$(grep "version=" */metadata.txt | cut -d= -f2 | tr -d '[:space:]')
+        mv dist/*-${VERSION}.zip dist/PointCloudFR-${VERSION}.zip
     
     - name: Extract plugin version
       id: plugin_version
@@ -41,7 +58,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: PointCloudFR-${{ steps.plugin_version.outputs.version }}
-        path: dist/*.zip
+        path: dist/PointCloudFR-*.zip
         if-no-files-found: error
     
     # Only create a release when a tag is pushed
@@ -49,5 +66,5 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/*.zip
+        files: dist/PointCloudFR-*.zip
         generate_release_notes: true
