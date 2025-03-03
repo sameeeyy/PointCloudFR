@@ -19,7 +19,7 @@ jobs:
 
       # Run pre-commit hooks (optional)
       - name: Format code base
-        uses: pre-commit/action@v3.0.1  
+        uses: pre-commit/action@v3.0.1
         continue-on-error: true
 
       # Create PR for pre-commit fixes if necessary
@@ -28,7 +28,7 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           branch: pre-commit-fixes
-          base: main 
+          base: main
 
       # Install dependencies for building QGIS plugin
       - name: Install dependencies
