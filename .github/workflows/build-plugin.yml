@@ -37,7 +37,7 @@ jobs:
 
       # Run pre-commit hooks (optional)
       - name: Format code base
-        uses: pre-commit/action@v3.0.1  
+        uses: pre-commit/action@v3.0.1
         continue-on-error: true
 
       # Create PR for pre-commit fixes if necessary
@@ -46,7 +46,7 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           branch: pre-commit-fixes  # Source branch for the PR
-          base: main            
+          base: main
 
       # Install dependencies for building QGIS plugin
       - name: Install build dependencies
@@ -60,7 +60,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          path: dist/*.zip         
+          path: dist/*.zip
           if-no-files-found: error
 
       # Create GitHub release if triggered by a tag push event
@@ -68,5 +68,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.zip       
+          files: dist/*.zip
           generate_release_notes: true
