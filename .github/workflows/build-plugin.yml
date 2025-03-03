@@ -6,42 +6,51 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # Checkout code from the correct branch
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          
+          ref: ${{ github.ref_name }} # Ensures the branch is checked out
+
+      # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      
+
+      # Run pre-commit hooks (optional)
       - name: Format code base
         uses: pre-commit/action@v3.0.1  
         continue-on-error: true
 
-      - name: Create PR
+      # Create PR for pre-commit fixes if necessary
+      - name: Create PR for pre-commit fixes
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.PAT }}
-          branch: pre-commit-fixes
+          token: ${{ secrets.PAT}}
+          branch: pre-commit-fixes  # Source branch for the PR
+          base: main               # Target branch for the PR (replace 'main' with your default branch)
 
-
+      # Install dependencies for building QGIS plugin
       - name: Install build dependencies
         run: python -m pip install setuptools_scm
-        
+
+      # Build the QGIS plugin
       - name: Build the QGIS plugin
-        run: python setup.py build -u -d dist .
-          
+        run: python setup.py build
+
+      # Upload build artifact if successful
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          path: dist/*.zip
+          path: dist/*.zip         # Ensure this matches your build output directory and file type
           if-no-files-found: error
-      
+
+      # Create GitHub release if triggered by a tag push event
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.zip
-          generate_release_notes: true 
-      
+          files: dist/*.zip        # Ensure this matches your artifact output path
+          generate_release_notes: true
