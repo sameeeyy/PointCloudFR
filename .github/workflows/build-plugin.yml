@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: > 
+    if: >
       !(github.event_name == 'pull_request' && contains(github.event.pull_request.title, 'Changes by create-pull-request action'))
 
     steps:
@@ -31,7 +31,7 @@ jobs:
 
       # Run pre-commit hooks (optional)
       - name: Format code base
-        uses: pre-commit/action@v3.0.1  
+        uses: pre-commit/action@v3.0.1
         continue-on-error: true
 
       # Create PR for pre-commit fixes if necessary
@@ -39,8 +39,8 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.PAT }}
-          branch: pre-commit-fixes  
-          base: main            
+          branch: pre-commit-fixes
+          base: main
 
       # Install dependencies for building QGIS plugin
       - name: Install build dependencies
@@ -53,7 +53,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          path: dist/*.zip     
+          path: dist/*.zip
           if-no-files-found: error
 
       # Create GitHub release if triggered by a tag push event
