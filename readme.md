@@ -27,7 +27,7 @@ PointCloudFR is a QGIS plugin that streamlines the process of downloading and pr
    - Go to `Plugins → Manage and Install Plugins → All`
    - Search & select `PointCloudFR`
    - Click `Install Plugin`
-   
+
 ### From GitHub artifacts
 
 1. **Download Plugin**
