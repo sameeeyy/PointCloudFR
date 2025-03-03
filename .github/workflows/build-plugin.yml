@@ -12,8 +12,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Skip the job if it's triggered by an auto-generated PR or by the GitHub Actions bot
     if: > 
-      !(github.event_name == 'pull_request' && contains(github.event.pull_request.title, 'Changes by create-pull-request action'))
+      !(github.event_name == 'pull_request' && contains(github.event.pull_request.title, 'Changes by create-pull-request action')) &&
+      github.actor != 'github-actions[bot]'
 
     steps:
       # Checkout repository
@@ -40,7 +42,7 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           branch: pre-commit-fixes  
-          base: main            
+          base: main              
 
       # Install dependencies for building QGIS plugin
       - name: Install build dependencies
@@ -53,7 +55,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          path: dist/*.zip     
+          path: dist/*.zip       
           if-no-files-found: error
 
       # Create GitHub release if triggered by a tag push event
