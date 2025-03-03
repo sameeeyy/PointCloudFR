@@ -4,7 +4,7 @@
 
 PointCloudFR is a QGIS plugin that streamlines the process of downloading and processing LiDAR point cloud data from IGN (French National Geographic Institute). Draw your area of interest, click download, and get your data - it's that simple!
 
-![Plugin Interface](/interface.png)
+![Plugin Interface](/interface.png)      
 
 ## ✨ Key Features
 
