@@ -59,7 +59,7 @@ jobs:
 
       # Run pre-commit hooks (optional)
       - name: Format code base
-        uses: pre-commit/action@v3.0.1  
+        uses: pre-commit/action@v3.0.1
         continue-on-error: true
 
       # Create PR for pre-commit fixes if necessary
