@@ -12,16 +12,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      # Skip if the commit was made by GitHub Actions bot
-      - name: Check if triggered by GitHub Actions bot
-        id: check_actor
-        run: |
-          if [ "${{ github.actor }}" == "github-actions[bot]" ]; then
-            echo "Triggered by GitHub Actions bot. Skipping..."
-            exit 0
-          fi
+    if: > 
+      !(github.event_name == 'pull_request' && contains(github.event.pull_request.title, 'Changes by create-pull-request action'))
 
+    steps:
       # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -45,14 +39,13 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.PAT }}
-          branch: pre-commit-fixes  # Source branch for the PR
+          branch: pre-commit-fixes  
           base: main            
 
       # Install dependencies for building QGIS plugin
       - name: Install build dependencies
         run: python -m pip install setuptools_scm
 
-      # Build the QGIS plugin
       - name: Build the QGIS plugin
         run: python setup.py build -u -d dist .
 
@@ -60,7 +53,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          path: dist/*.zip         
+          path: dist/*.zip     
           if-no-files-found: error
 
       # Create GitHub release if triggered by a tag push event
@@ -68,5 +61,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.zip       
+          files: dist/*.zip        # Ensure this matches your artifact output path
           generate_release_notes: true
