@@ -1,15 +1,13 @@
 import concurrent.futures
 import contextlib
-import hashlib
 import os
+import shutil
 import threading
-import time
 import uuid
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
-import shutil
 
 import processing
 import requests
@@ -85,8 +83,8 @@ class LidarLogger:
             log_dir = Path.home() / ".qgis" / "lidar_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = (
-                    log_dir
-                    / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+                log_dir
+                / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
             )
 
     def info(self, message: str):
@@ -130,8 +128,8 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     LOAD_LAYER = "LOAD_LAYER"
 
     # Memory and file size limits (in bytes)
-    MAX_FILE_SIZE = float('inf')  # No limit
-    MAX_TOTAL_DOWNLOAD_SIZE = float('inf')  # No limit
+    MAX_FILE_SIZE = float("inf")  # No limit
+    MAX_TOTAL_DOWNLOAD_SIZE = float("inf")  # No limit
     MIN_DISK_SPACE_MB = 1024  # 1GB minimum free space
 
     STRATEGY_OPTIONS = [
@@ -302,7 +300,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.warning(f"Could not check disk space: {e}")
             return True  # Assume OK if we can't check
 
-    def _validate_file_integrity(self, file_path: Path, expected_min_size: int = 1024) -> bool:
+    def _validate_file_integrity(
+        self, file_path: Path, expected_min_size: int = 1024
+    ) -> bool:
         """Validate downloaded file integrity."""
         try:
             if not file_path.exists():
@@ -315,9 +315,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 return False
 
             # For ZIP files, try to open them
-            if file_path.suffix.lower() == '.zip':
+            if file_path.suffix.lower() == ".zip":
                 try:
-                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    with zipfile.ZipFile(file_path, "r") as zip_ref:
                         # Test the ZIP file integrity
                         zip_ref.testzip()
                 except zipfile.BadZipFile:
@@ -360,11 +360,11 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return False
 
     def download_file(
-            self,
-            url: str,
-            output_path: str,
-            progress_tracker: DownloadProgressTracker,
-            force_download: bool = False,
+        self,
+        url: str,
+        output_path: str,
+        progress_tracker: DownloadProgressTracker,
+        force_download: bool = False,
     ) -> Tuple[bool, str]:
         """Download file with simplified progress tracking."""
         output_path = Path(output_path)
@@ -376,7 +376,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             retry_strategy = Retry(
                 total=3,
                 status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["HEAD", "GET", "OPTIONS"]
+                allowed_methods=["HEAD", "GET", "OPTIONS"],
             )
             adapter = HTTPAdapter(max_retries=retry_strategy)
             session.mount("http://", adapter)
@@ -387,10 +387,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 response.raise_for_status()
                 content_length = int(response.headers.get("content-length", 0))
                 filename = (
-                        response.headers.get("content-disposition", "")
-                        .split("filename=")[-1]
-                        .strip('"')
-                        or url.split("/")[-1]
+                    response.headers.get("content-disposition", "")
+                    .split("filename=")[-1]
+                    .strip('"')
+                    or url.split("/")[-1]
                 )
 
                 # Check file size limits
@@ -402,17 +402,21 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Determine output file path
             output_file = output_path / filename
-            
+
             # Check if file already exists and is valid
             if output_file.exists() and not force_download:
                 if self._validate_file_integrity(output_file):
                     self.logger.info(f"File already exists and is valid: {filename}")
                     return True, str(output_file)
                 else:
-                    self.logger.warning(f"Existing file is invalid, re-downloading: {filename}")
+                    self.logger.warning(
+                        f"Existing file is invalid, re-downloading: {filename}"
+                    )
 
             # Check disk space
-            required_space_mb = (content_length / (1024 * 1024)) + 100  # Add 100MB buffer
+            required_space_mb = (
+                content_length / (1024 * 1024)
+            ) + 100  # Add 100MB buffer
             if not self._check_disk_space(output_path, required_space_mb):
                 return False, ""
 
@@ -466,7 +470,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         # Try each database URL
         downloaded_zip = None
         for url in self.DATABASE_URLS:
-            success, file_path = self.download_file(url, str(out_dir), progress_tracker, False)
+            success, file_path = self.download_file(
+                url, str(out_dir), progress_tracker, False
+            )
             if success and file_path:
                 downloaded_zip = Path(file_path)
                 break
@@ -534,7 +540,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             for feature in self._tiles_layer.getFeatures():
                 self._spatial_index.addFeature(feature)
 
-            self.logger.info(f"Successfully loaded database with {feature_count} features")
+            self.logger.info(
+                f"Successfully loaded database with {feature_count} features"
+            )
             return True
 
         except Exception as e:
@@ -559,14 +567,18 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 if feature.geometry().intersects(aoi_geometry):
                     intersecting_features.append(feature)
 
-            self.logger.info(f"Confirmed {len(intersecting_features)} intersecting tiles")
+            self.logger.info(
+                f"Confirmed {len(intersecting_features)} intersecting tiles"
+            )
             return intersecting_features
 
         except Exception as e:
             self.logger.error(f"Error finding intersecting tiles: {str(e)}")
             return []
 
-    def _validate_download_limits(self, tiles: List[QgsFeature], max_downloads: int) -> bool:
+    def _validate_download_limits(
+        self, tiles: List[QgsFeature], max_downloads: int
+    ) -> bool:
         """Validate download limits before starting."""
         if len(tiles) > max_downloads * 2:  # Allow some buffer
             self.logger.warning(
@@ -599,8 +611,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
             )
             max_downloads = self.parameterAsInt(parameters, self.MAX_DOWNLOADS, context)
-            force_download = self.parameterAsBool(parameters, self.FORCE_DOWNLOAD, context)
-            merge_strategy = self.parameterAsEnum(parameters, self.MERGE_STRATEGY, context)
+            force_download = self.parameterAsBool(
+                parameters, self.FORCE_DOWNLOAD, context
+            )
+            merge_strategy = self.parameterAsEnum(
+                parameters, self.MERGE_STRATEGY, context
+            )
             load_layer = self.parameterAsBool(parameters, self.LOAD_LAYER, context)
 
             # Validate max_downloads parameter
@@ -613,7 +629,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.info(f"- Output folder: {output_folder}")
             self.logger.info(f"- Max concurrent downloads: {max_downloads}")
             self.logger.info(f"- Force download: {force_download}")
-            self.logger.info(f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}")
+            self.logger.info(
+                f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}"
+            )
             self.logger.info(f"- Load layer after download: {load_layer}")
 
             # Create directory structure
@@ -682,7 +700,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             try:
                 with concurrent.futures.ThreadPoolExecutor(
-                        max_workers=max_downloads
+                    max_workers=max_downloads
                 ) as executor:
                     futures = [
                         executor.submit(
@@ -700,7 +718,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                             success, file_path = future.result()
                             if success and file_path:
                                 downloaded_files.append(file_path)
-                            
+
                             # Mark file as completed regardless of success/failure
                             progress_tracker.mark_file_completed()
                             self.logger.info(progress_tracker.get_progress_info())
@@ -710,12 +728,16 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                                 break
 
                         except Exception as e:
-                            self.logger.error(f"Error processing download result: {str(e)}")
+                            self.logger.error(
+                                f"Error processing download result: {str(e)}"
+                            )
                             # Still mark as completed to maintain progress accuracy
                             progress_tracker.mark_file_completed()
                             continue
 
-                self.logger.info(f"Download completed: {progress_tracker.get_progress_info()}")
+                self.logger.info(
+                    f"Download completed: {progress_tracker.get_progress_info()}"
+                )
 
             except Exception as e:
                 self.logger.error(f"Error during concurrent downloads: {str(e)}")
@@ -730,7 +752,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Process output based on strategy
             if merge_strategy == 0:  # Download All (No Merge)
-                self.logger.info(f"Strategy: Download All - Returning {len(downloaded_files)} files")
+                self.logger.info(
+                    f"Strategy: Download All - Returning {len(downloaded_files)} files"
+                )
 
                 if load_layer:
                     for file_path in downloaded_files:
@@ -742,8 +766,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     "OUTPUT_FILES": ";".join(downloaded_files),
                 }
 
-            elif merge_strategy == 1 and len(downloaded_files) > 0:  # Merge All Intersecting
-                self.logger.info(f"Strategy: Merge All - Merging {len(downloaded_files)} files")
+            elif (
+                merge_strategy == 1 and len(downloaded_files) > 0
+            ):  # Merge All Intersecting
+                self.logger.info(
+                    f"Strategy: Merge All - Merging {len(downloaded_files)} files"
+                )
 
                 merged_output = str(downloads_dir / "merged_output.laz")
                 try:
@@ -759,7 +787,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     )
 
                     if result and "OUTPUT" in result:
-                        self.logger.info(f"Successfully merged files to: {result['OUTPUT']}")
+                        self.logger.info(
+                            f"Successfully merged files to: {result['OUTPUT']}"
+                        )
                         self.logger.warning(
                             "Note: Auto-loading is disabled for merged files. "
                             "To visualize, manually drag and drop the file into QGIS from:"
@@ -770,7 +800,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                             "OUTPUT_FILE": result["OUTPUT"],
                         }
                     else:
-                        self.logger.warning("Merge operation failed - using first file as fallback")
+                        self.logger.warning(
+                            "Merge operation failed - using first file as fallback"
+                        )
                         return {
                             "OUTPUT_DIRECTORY": str(downloads_dir),
                             "OUTPUT_FILE": downloaded_files[0],
@@ -786,7 +818,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             else:  # Use Most Coverage or single file
                 output_file = downloaded_files[0] if downloaded_files else ""
-                self.logger.info(f"Strategy: Most Coverage - Selected file: {output_file}")
+                self.logger.info(
+                    f"Strategy: Most Coverage - Selected file: {output_file}"
+                )
 
                 if load_layer and output_file:
                     self.load_point_cloud_layer(output_file)
@@ -799,6 +833,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         except Exception as e:
             self.logger.error(f"Error in main processing: {str(e)}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return {}
 
@@ -807,7 +842,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self._cleanup_temp_files()
 
     def _select_best_tiles(
-            self, tiles: List[QgsFeature], aoi_geometry: QgsGeometry, strategy: int
+        self, tiles: List[QgsFeature], aoi_geometry: QgsGeometry, strategy: int
     ) -> List[QgsFeature]:
         """Select tiles based on strategy with improved logging."""
         if not tiles:
@@ -835,13 +870,17 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 if area > max_area:
                     max_area = area
                     best_tile = tile
-                    self.logger.info(f"New best tile found - intersection area: {area:.2f}")
+                    self.logger.info(
+                        f"New best tile found - intersection area: {area:.2f}"
+                    )
 
             if best_tile:
                 self.logger.info("Selected tile with maximum intersection area")
                 return [best_tile]
 
-            self.logger.warning("No valid intersection found - falling back to first tile")
+            self.logger.warning(
+                "No valid intersection found - falling back to first tile"
+            )
             return tiles[:1]
 
         except Exception as e:
