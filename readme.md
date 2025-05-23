@@ -8,7 +8,7 @@ PointCloudFR is a QGIS plugin that streamlines the process of downloading and pr
 
 ## ✨ Key Features
 
-- **Simple AOI Selection** - Use any polygon layer to define your download area
+- **Simple AOI Selection** - Use any geometery layer to define your download area
 - **Smart Downloads** - Automatically identifies and downloads required LiDAR tiles
 - **Parallel Processing** - Downloads multiple tiles simultaneously for better performance
 - **Advanced Error Handling** - Comprehensive error checking and recovery mechanisms
@@ -125,9 +125,9 @@ PointCloudFR is powered by LiDAR HD data originally created by the French Nation
 * **Database Title**: ableau d'assemblage des dalles des nuages des points classées de l'IGN (données complémentaire pour le plugin PointCloudFR)  
 * **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)  
 * **Data Host/Maintainer**: Samy KHELIL
-* **Update date**: 14/02/2025
+* **Update date**: 20/05/2025
 * **Publisher**: Zenodo  
-* [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14867452.svg)](https://doi.org/10.5281/zenodo.14867452)
+* [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14867452.svg)](https://doi.org/10.5281/zenodo.15459210)
 
 *All intellectual property rights for the original geospatial data are held by IGN.*
 
