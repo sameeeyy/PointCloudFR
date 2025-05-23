@@ -767,7 +767,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 }
 
             elif (
-                merge_strategy == 1 and len(downloaded_files) > 0
+                merge_strategy == 1 and len(downloaded_files) > 1
             ):  # Merge All Intersecting
                 self.logger.info(
                     f"Strategy: Merge All - Merging {len(downloaded_files)} files"
