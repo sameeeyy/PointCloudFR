@@ -24,6 +24,6 @@ deprecated=False
 plugin_dependencies=processing
 translations=fr
 
-changelog=1.1.0 - Updated copy of the IGN's LiDAR tiles database (2025-02-13), improved thread safety and resource management, added disk space validation, file integrity checks, better error handling, atomic file operations
+changelog=1.1.0 - Updated copy of the IGN's LiDAR tiles database (2025-05-20), improved thread safety and resource management, added disk space validation, file integrity checks, better error handling, atomic file operations
     1.0.1 - Updated copy of the IGN's LiDAR tiles database (2025-02-13)
     1.0.0 - Initial release
