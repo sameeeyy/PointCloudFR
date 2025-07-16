@@ -2,14 +2,13 @@ import concurrent.futures
 import contextlib
 import os
 import shutil
-import sys
 import threading
 import time
 import uuid
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import processing
 import requests
@@ -17,8 +16,6 @@ from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
-    QgsFeature,
-    QgsFeatureRequest,
     QgsGeometry,
     QgsMessageLog,
     QgsPointCloudClassifiedRenderer,
@@ -36,13 +33,8 @@ from qgis.core import (
     QgsProcessingParameterNumber,
     QgsProject,
     QgsRasterLayer,
-    QgsSingleBandPseudoColorRenderer,
-    QgsColorRampShader,
-    QgsSpatialIndex,
-    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QColor
 from requests.adapters import HTTPAdapter, Retry
 
 
@@ -91,7 +83,8 @@ class LidarLogger:
             log_dir = Path.home() / ".qgis" / "lidar_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = (
-                    log_dir / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+                log_dir
+                / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
             )
 
     def info(self, message: str):
@@ -138,15 +131,15 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     # Memory and file size limits (in bytes)
     MAX_FILE_SIZE = float("inf")  # No limit
     MAX_TOTAL_DOWNLOAD_SIZE = float("inf")  # No limit
-    MIN_DISK_SPACE_MB = 1024  #1GB minimum free space
-    MAX_TILES_RECOMMENDED = 50  #Recommended maximum tiles per download
+    MIN_DISK_SPACE_MB = 1024  # 1GB minimum free space
+    MAX_TILES_RECOMMENDED = 50  # Recommended maximum tiles per download
 
     # Options for data types
     DATA_TYPE_OPTIONS = [
         "MNT (Digital Terrain Model)",
-        "MNS (Digital Surface Model)", 
+        "MNS (Digital Surface Model)",
         "MNH (Digital Height Model)",
-        "LIDAR (Point Cloud)"
+        "LIDAR (Point Cloud)",
     ]
 
     # Mapping to WFS codes
@@ -154,7 +147,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         0: "IGNF_LIDAR-HD_TA:mnt-dalle",
         1: "IGNF_LIDAR-HD_TA:mns-dalle",
         2: "IGNF_LIDAR-HD_TA:mnh-dalle",
-        3: "IGNF_LIDAR-HD_TA:nuage-dalle"
+        3: "IGNF_LIDAR-HD_TA:nuage-dalle",
     }
 
     STRATEGY_OPTIONS = [
@@ -183,7 +176,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-"""
+            """
 PointCloudFR - French IGN LiDAR HD Data Downloader
 
 Downloads French IGN LiDAR HD elevation data that intersects with your Area of Interest (AOI).
@@ -341,7 +334,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return True  # Assume OK if we can't check
 
     def _validate_file_integrity(
-            self, file_path: Path, expected_min_size: int = 1024
+        self, file_path: Path, expected_min_size: int = 1024
     ) -> bool:
         """Validate downloaded file integrity."""
         try:
@@ -374,7 +367,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         try:
             if file_path.exists():
                 # Sur Windows, parfois le fichier peut être verrouillé
-                if os.name == 'nt':  # Windows
+                if os.name == "nt":  # Windows
                     for attempt in range(3):
                         try:
                             file_path.unlink()
@@ -441,8 +434,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.error(f"Error loading raster layer: {str(e)}")
             return False
 
-    def merge_rasters_gdal(self, raster_files: List[str], output_folder: Path,
-                           output_filename: str = "merged_output.tif") -> str:
+    def merge_rasters_gdal(
+        self,
+        raster_files: List[str],
+        output_folder: Path,
+        output_filename: str = "merged_output.tif",
+    ) -> str:
         """Merge raster .tif files using GDAL Python API."""
         try:
             from osgeo import gdal
@@ -451,16 +448,18 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Options de fusion
             options = gdal.WarpOptions(
-                format='GTiff',
-                creationOptions=['COMPRESS=DEFLATE', 'PREDICTOR=2', 'ZLEVEL=9'],
-                outputType=gdal.GDT_Float32
+                format="GTiff",
+                creationOptions=["COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=9"],
+                outputType=gdal.GDT_Float32,
             )
 
             # Fusionner les rasters
             gdal.Warp(str(output_path), raster_files, options=options)
 
             if output_path.exists():
-                self.logger.info(f"Successfully merged {len(raster_files)} raster files to: {output_path}")
+                self.logger.info(
+                    f"Successfully merged {len(raster_files)} raster files to: {output_path}"
+                )
                 return str(output_path)
             else:
                 self.logger.error("GDAL merge completed but output file not found")
@@ -471,11 +470,11 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return ""
 
     def download_file(
-            self,
-            url: str,
-            output_path: str,
-            progress_tracker: DownloadProgressTracker,
-            force_download: bool = False,
+        self,
+        url: str,
+        output_path: str,
+        progress_tracker: DownloadProgressTracker,
+        force_download: bool = False,
     ) -> Tuple[bool, str]:
         """Download file with proper cancellation and force download handling."""
         output_path = Path(output_path)
@@ -511,15 +510,17 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 filename = self._sanitize_filename(filename)
 
             # Ensure proper file extension
-            if not filename.endswith(('.tif', '.tiff', '.laz', '.las')):
-                filename += '.tif'
+            if not filename.endswith((".tif", ".tiff", ".laz", ".las")):
+                filename += ".tif"
 
             output_file = output_path / filename
 
             # Check if file already exists and is valid
             if output_file.exists():
                 if force_download:
-                    self.logger.info(f"Force download enabled - removing existing file: {output_file}")
+                    self.logger.info(
+                        f"Force download enabled - removing existing file: {output_file}"
+                    )
                     if not self._safe_remove_file(output_file):
                         return False, ""
                 else:
@@ -564,7 +565,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     self.logger.info(f"Successfully downloaded: {output_file}")
                     return True, str(output_file)
                 except Exception as e:
-                    self.logger.error(f"Failed to rename temp file to {output_file}: {e}")
+                    self.logger.error(
+                        f"Failed to rename temp file to {output_file}: {e}"
+                    )
                     return False, ""
 
         except InterruptedError:
@@ -582,19 +585,21 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         # Remove or replace invalid Windows filename characters
         invalid_chars = '<>:"/\\|?*&'
         for char in invalid_chars:
-            filename = filename.replace(char, '_')
+            filename = filename.replace(char, "_")
 
         # Remove control characters
-        filename = ''.join(c for c in filename if ord(c) >= 32)
+        filename = "".join(c for c in filename if ord(c) >= 32)
 
         # Limit filename length
         if len(filename) > 200:
             name, ext = os.path.splitext(filename)
-            filename = name[:200 - len(ext)] + ext
+            filename = name[: 200 - len(ext)] + ext
 
         return filename
 
-    def _query_wfs_tiles(self, aoi_geometry: QgsGeometry, data_type_code: str) -> List[dict]:
+    def _query_wfs_tiles(
+        self, aoi_geometry: QgsGeometry, data_type_code: str
+    ) -> List[dict]:
         """Query WFS service using proven working parameters."""
         try:
             self.logger.info(f"Querying WFS for data type: {data_type_code}")
@@ -604,12 +609,15 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Convert geometry to Lambert-93 if needed
             aoi_l93 = aoi_geometry
-            if hasattr(aoi_geometry,
-                       'sourceCrs') and aoi_geometry.sourceCrs() and aoi_geometry.sourceCrs().authid() != "EPSG:2154":
+            if (
+                hasattr(aoi_geometry, "sourceCrs")
+                and aoi_geometry.sourceCrs()
+                and aoi_geometry.sourceCrs().authid() != "EPSG:2154"
+            ):
                 transform = QgsCoordinateTransform(
                     aoi_geometry.sourceCrs(),
                     QgsCoordinateReferenceSystem("EPSG:2154"),
-                    QgsProject.instance()
+                    QgsProject.instance(),
                 )
                 aoi_l93 = QgsGeometry(aoi_geometry)
                 aoi_l93.transform(transform)
@@ -618,16 +626,16 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             bbox = aoi_l93.boundingBox()
 
             params = {
-                'SERVICE': 'WFS',
-                'VERSION': '2.0.0',
-                'REQUEST': 'GetFeature',
-                'TYPENAME': data_type_code,
-                'OUTPUTFORMAT': 'application/json'
+                "SERVICE": "WFS",
+                "VERSION": "2.0.0",
+                "REQUEST": "GetFeature",
+                "TYPENAME": data_type_code,
+                "OUTPUTFORMAT": "application/json",
             }
 
-          
-            params[
-                'BBOX'] = f"{bbox.xMinimum()},{bbox.yMinimum()},{bbox.xMaximum()},{bbox.yMaximum()},urn:ogc:def:crs:EPSG::2154"
+            params["BBOX"] = (
+                f"{bbox.xMinimum()},{bbox.yMinimum()},{bbox.xMaximum()},{bbox.yMaximum()},urn:ogc:def:crs:EPSG::2154"
+            )
 
             self.logger.info(f"WFS query URL: {wfs_url}")
             self.logger.info(f"BBOX: {params['BBOX']}")
@@ -638,22 +646,24 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
                 # Parse GeoJSON response
                 geojson_data = response.json()
-                if 'features' not in geojson_data:
+                if "features" not in geojson_data:
                     self.logger.error("No features found in WFS response")
                     return []
 
                 tiles = []
-                for feature in geojson_data['features']:
-                    if 'properties' in feature:
-                        properties = feature['properties']
+                for feature in geojson_data["features"]:
+                    if "properties" in feature:
+                        properties = feature["properties"]
                         # Check for required properties
-                        if 'url' in properties and 'name' in properties:
-                            tiles.append({
-                                'url': properties['url'],
-                                'name': properties['name'],
-                                'geometry': feature.get('geometry'),
-                                'properties': properties
-                            })
+                        if "url" in properties and "name" in properties:
+                            tiles.append(
+                                {
+                                    "url": properties["url"],
+                                    "name": properties["name"],
+                                    "geometry": feature.get("geometry"),
+                                    "properties": properties,
+                                }
+                            )
 
                 self.logger.info(f"Found {len(tiles)} tiles")
                 return tiles
@@ -663,7 +673,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 return []
             except (ValueError, KeyError) as e:
                 self.logger.error(f"Error parsing WFS response: {str(e)}")
-                if 'response' in locals():
+                if "response" in locals():
                     self.logger.error(f"Response content: {response.text[:500]}...")
                 return []
 
@@ -671,19 +681,20 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.error(f"Error querying WFS: {str(e)}")
             return []
 
-    def _filter_intersecting_tiles(self, tiles: List[dict], aoi_geometry: QgsGeometry) -> List[dict]:
+    def _filter_intersecting_tiles(
+        self, tiles: List[dict], aoi_geometry: QgsGeometry
+    ) -> List[dict]:
         """Filter tiles that actually intersect with AOI geometry."""
         try:
             intersecting_tiles = []
             for tile in tiles:
-                if 'geometry' in tile and tile['geometry']:
+                if "geometry" in tile and tile["geometry"]:
                     try:
                         # Create QgsGeometry from GeoJSON geometry
-                        coords = tile['geometry']['coordinates'][0]
-                        tile_geom = QgsGeometry.fromPolygonXY([[
-                            QgsPointXY(coord[0], coord[1])
-                            for coord in coords
-                        ]])
+                        coords = tile["geometry"]["coordinates"][0]
+                        tile_geom = QgsGeometry.fromPolygonXY(
+                            [[QgsPointXY(coord[0], coord[1]) for coord in coords]]
+                        )
 
                         # Check intersection
                         if tile_geom.intersects(aoi_geometry):
@@ -693,7 +704,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                         # Include tile if we can't process geometry
                         intersecting_tiles.append(tile)
 
-            self.logger.info(f"Filtered to {len(intersecting_tiles)} intersecting tiles")
+            self.logger.info(
+                f"Filtered to {len(intersecting_tiles)} intersecting tiles"
+            )
             return intersecting_tiles
         except Exception as e:
             self.logger.error(f"Error filtering intersecting tiles: {str(e)}")
@@ -708,7 +721,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             )
         return True
 
-    def _select_best_tiles(self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int) -> List[dict]:
+    def _select_best_tiles(
+        self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int
+    ) -> List[dict]:
         """Select tiles based on strategy with improved coverage calculation."""
         if not tiles:
             self.logger.warning("No tiles provided for selection")
@@ -730,13 +745,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             best_tile = None
 
             for tile in tiles:
-                if 'geometry' in tile and tile['geometry']:
+                if "geometry" in tile and tile["geometry"]:
                     try:
-                        coords = tile['geometry']['coordinates'][0]
-                        tile_geom = QgsGeometry.fromPolygonXY([[
-                            QgsPointXY(coord[0], coord[1])
-                            for coord in coords
-                        ]])
+                        coords = tile["geometry"]["coordinates"][0]
+                        tile_geom = QgsGeometry.fromPolygonXY(
+                            [[QgsPointXY(coord[0], coord[1]) for coord in coords]]
+                        )
 
                         intersection = tile_geom.intersection(aoi_geometry)
                         area = intersection.area()
@@ -754,7 +768,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 self.logger.info(f"Selected best tile: {best_tile['name']}")
                 return [best_tile]
 
-            self.logger.warning("No valid intersection found - falling back to first tile")
+            self.logger.warning(
+                "No valid intersection found - falling back to first tile"
+            )
             return tiles[:1]
 
         except Exception as e:
@@ -802,7 +818,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.info(f"- Output folder: {output_folder}")
             self.logger.info(f"- Max concurrent downloads: {max_downloads}")
             self.logger.info(f"- Force download: {force_download}")
-            self.logger.info(f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}")
+            self.logger.info(
+                f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}"
+            )
             self.logger.info(f"- Load layer after download: {load_layer}")
 
             # Create directory structure
@@ -827,11 +845,13 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Transform to Lambert-93 if needed
             if source_crs.authid() != "EPSG:2154":
-                self.logger.info(f"Transforming geometry from {source_crs.authid()} to EPSG:2154")
+                self.logger.info(
+                    f"Transforming geometry from {source_crs.authid()} to EPSG:2154"
+                )
                 transform = QgsCoordinateTransform(
                     source_crs,
                     QgsCoordinateReferenceSystem("EPSG:2154"),
-                    QgsProject.instance()
+                    QgsProject.instance(),
                 )
                 aoi_geometry.transform(transform)
 
@@ -844,7 +864,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
             # Filter tiles that actually intersect
-            intersecting_tiles = self._filter_intersecting_tiles(wfs_tiles, aoi_geometry)
+            intersecting_tiles = self._filter_intersecting_tiles(
+                wfs_tiles, aoi_geometry
+            )
             if not intersecting_tiles:
                 self.logger.info("No tiles intersect with AOI")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
@@ -868,7 +890,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             downloaded_files = []
             try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_downloads) as executor:
+                with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=max_downloads
+                ) as executor:
                     futures = [
                         executor.submit(
                             self.download_file,
@@ -881,9 +905,11 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     ]
 
                     for future in concurrent.futures.as_completed(futures):
-              
+
                         if self.feedback.isCanceled():
-                            self.logger.info("Cancellation requested - stopping all downloads...")
+                            self.logger.info(
+                                "Cancellation requested - stopping all downloads..."
+                            )
 
                             cancelled_count = 0
                             for f in futures:
@@ -891,7 +917,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                                     if f.cancel():
                                         cancelled_count += 1
 
-                            self.logger.info(f"Cancelled {cancelled_count} pending downloads")
+                            self.logger.info(
+                                f"Cancelled {cancelled_count} pending downloads"
+                            )
 
                             # Arrêter l'executor et sortir de la boucle
                             executor.shutdown(wait=False)
@@ -904,20 +932,26 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
                             # Mark file as completed regardless of success/failure
                             progress_tracker.mark_file_completed()
-                            self.logger.info(f"({progress_tracker.completed_files}/{progress_tracker.total_files})")
+                            self.logger.info(
+                                f"({progress_tracker.completed_files}/{progress_tracker.total_files})"
+                            )
 
                         except Exception as e:
-                            self.logger.error(f"Error processing download result: {str(e)}")
+                            self.logger.error(
+                                f"Error processing download result: {str(e)}"
+                            )
                             progress_tracker.mark_file_completed()
                             continue
 
                 # Log final status
                 if self.feedback.isCanceled():
                     self.logger.info(
-                        f"Download cancelled by user. Downloaded {len(downloaded_files)} files before cancellation.")
+                        f"Download cancelled by user. Downloaded {len(downloaded_files)} files before cancellation."
+                    )
                 else:
                     self.logger.info(
-                        f"Download completed: ({progress_tracker.completed_files}/{progress_tracker.total_files})")
+                        f"Download completed: ({progress_tracker.completed_files}/{progress_tracker.total_files})"
+                    )
 
             except Exception as e:
                 self.logger.error(f"Error during concurrent downloads: {str(e)}")
@@ -928,7 +962,6 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             if not downloaded_files:
                 self.logger.warning("No files were successfully downloaded")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
-
 
             # Process output based on strategy
             if merge_strategy == 0:  # Download All (No Merge)
@@ -948,8 +981,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     "OUTPUT_FILE": downloaded_files[0] if downloaded_files else "",
                     "OUTPUT_FILES": ";".join(downloaded_files),
                 }
-                            
-            elif merge_strategy == 1 and len(downloaded_files) > 1:  # Merge All Intersecting
+
+            elif (
+                merge_strategy == 1 and len(downloaded_files) > 1
+            ):  # Merge All Intersecting
                 self.logger.info(
                     f"Strategy: Merge All - Merging {len(downloaded_files)} files"
                 )
@@ -960,7 +995,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                         result = processing.run(
                             "pdal:merge",
                             {
-                                "LAYERS": [f"copc://{path}" for path in downloaded_files],
+                                "LAYERS": [
+                                    f"copc://{path}" for path in downloaded_files
+                                ],
                                 "FILTER_EXPRESSION": "",
                                 "FILTER_EXTENT": None,
                                 "OUTPUT": merged_output,
@@ -1001,13 +1038,13 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     # For raster data (MNT, MNS, MNH), use GDAL merge
                     self.logger.info(f"Merging {len(downloaded_files)} rasters")
                     merged_output = self.merge_rasters_gdal(
-                        downloaded_files,
-                        downloads_dir,
-                        "merged_output.tif"
+                        downloaded_files, downloads_dir, "merged_output.tif"
                     )
 
                     if merged_output:
-                        self.logger.info(f"Successfully merged raster files to: {merged_output}")
+                        self.logger.info(
+                            f"Successfully merged raster files to: {merged_output}"
+                        )
                         # Load the merged layer if requested
                         if load_layer:
                             self.load_raster_layer(merged_output, data_type)
@@ -1018,7 +1055,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                             "OUTPUT_FILES": ";".join(downloaded_files),
                         }
                     else:
-                        self.logger.warning("Raster merge operation failed - using first file as fallback")
+                        self.logger.warning(
+                            "Raster merge operation failed - using first file as fallback"
+                        )
                         return {
                             "OUTPUT_DIRECTORY": str(downloads_dir),
                             "OUTPUT_FILE": downloaded_files[0],
@@ -1035,6 +1074,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         except Exception as e:
             self.logger.error(f"Error in main processing: {str(e)}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return {}
         finally:
