@@ -125,7 +125,7 @@ PointCloudFR is powered by LiDAR HD and elevation data originally created by the
 * **Data Source**: IGN Géoplateforme WFS Service
 * **Service URL**: https://data.geopf.fr/wfs/ows
 * **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)
-* **Data Types Available**: 
+* **Data Types Available**:
   - IGNF_LIDAR-HD_TA:mnt-dalle (Digital Terrain Model)
   - IGNF_LIDAR-HD_TA:mns-dalle (Digital Surface Model)
   - IGNF_LIDAR-HD_TA:mnh-dalle (Digital Height Model)
