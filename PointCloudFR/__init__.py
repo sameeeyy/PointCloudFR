@@ -15,7 +15,7 @@ from qgis.PyQt.QtCore import QCoreApplication, Qt, QTranslator
 from qgis.PyQt.QtWidgets import QMessageBox
 
 # Plugin version
-VERSION = "1.0.2"
+VERSION = "2.0.0"
 PLUGIN_NAME = "PointCloudFR"
 PLUGIN_DIR = Path(__file__).parent
 

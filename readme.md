@@ -2,7 +2,7 @@
 
 > Download French IGN LiDAR data directly from QGIS with ease
 
-PointCloudFR is a QGIS plugin that streamlines the process of downloading and processing LiDAR point cloud data from IGN (French National Geographic Institute). Draw your area of interest, click download, and get your data - it's that simple!
+PointCloudFR is a QGIS plugin that streamlines the process of downloading and processing LiDAR point cloud and elevation data from IGN (French National Geographic Institute). Draw your area of interest, select your data type, click download, and get your data - it's that simple!
 
 ![Plugin Interface](/interface.png)  
 
@@ -10,15 +10,13 @@ PointCloudFR is a QGIS plugin that streamlines the process of downloading and pr
 
 - **Simple AOI Selection** - Use any polygon layer to define your download area
 - **Smart Downloads** - Automatically identifies and downloads required LiDAR tiles
-- **Parallel Processing** - Downloads multiple tiles simultaneously for better performance
-- **Advanced Error Handling** - Comprehensive error checking and recovery mechanisms
-- **Multiple Data Sources** - Uses both IGN's primary server and backup sources for reliability
+- **Multiple Data Types** - Download LiDAR point clouds or elevation rasters (MNT, MNS, MNH)
 - **Flexible Processing Options** - Three strategies for handling multiple tiles:
   - Download All (No Merge) - Get all raw tiles for custom processing
   - Merge All Intersecting - Combines all intersecting tiles (ideal for automated workflows)
   - Use Most Coverage - Selects the tile with maximum overlap
 - **Automatic Setup** - Handles all dependencies installation automatically
-- **Auto-Loading** - Option to automatically load downloaded point clouds into your QGIS project
+- **Auto-Loading** - Option to automatically load downloaded layers (point clouds with classified renderer or rasters) into your QGIS project
 
 ## 🚀 Installation
 
@@ -81,14 +79,16 @@ python -m setup.py build -u .
 
 ## 📋 Parameters Explained
 
-Parameter | Description | Example
-----------|-------------|--------
-Input AOI | Any polygon layer defining your area of interest | Urban district boundary
-Output Folder | Where to save downloaded LiDAR data | `C:/LiDAR_Data`
-Max Downloads | Number of concurrent downloads (1-10) | `4` (default)
-Force Download | Re-download existing files | `False` (default)
-Processing Strategy | How to handle multiple tiles | `Download All (No Merge)` (default)
-Load Layer | Automatically load point cloud after download | `True` (default)
+| Parameter | Description | Example |
+| :-- | :-- | :-- |
+| Input AOI | Any polygon layer defining your area of interest | Urban district boundary |
+| Data Type | Type of data to download: MNT (Digital Terrain Model), MNS (Digital Surface Model), MNH (Digital Height Model), or LIDAR (Point Cloud) | `LIDAR (Point Cloud)` (default) |
+| Output Folder | Where to save downloaded data | `C:/LiDAR_Data` |
+| Max Downloads | Number of concurrent downloads (1-10) | `4` (default) |
+| Force Download | Re-download existing files | `False` (default) |
+| Processing Strategy | How to handle multiple tiles | `Download All (No Merge)` (default) |
+| Load Layer | Automatically load downloaded layers after processing | `True` (default) |
+
 
 ## 💡 Tips for Best Results
 
@@ -107,8 +107,8 @@ Load Layer | Automatically load point cloud after download | `True` (default)
    - Partial Coverage: `Use Most Coverage` - When you only need the tile with maximum overlap
 
 4. **Data Loading**
-   - Use the auto-load option for immediate visualization
-   - Disable auto-load for batch processing or when working with many tiles
+    - Use the auto-load option for immediate visualization (point clouds with classification or rasters)
+    - Disable auto-load for batch processing or when working with many tiles
 
 ## 🤝 Contributing
 
@@ -120,14 +120,17 @@ Found a bug? Have a suggestion? Contributions are welcome!
 
 ## Data Source 📊
 
-PointCloudFR is powered by LiDAR HD data originally created by the French National Geographic Institute (IGN). This dataset, which represents the comprehensive LiDAR HD tiles distribution, is hosted on Zenodo.
+PointCloudFR is powered by LiDAR HD and elevation data originally created by the French National Geographic Institute (IGN). This dataset is accessed directly through IGN's Web Feature Service (WFS) via the Géoplateforme.
 
-* **Database Title**: ableau d'assemblage des dalles des nuages des points classées de l'IGN (données complémentaire pour le plugin PointCloudFR)  
-* **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)  
-* **Data Host/Maintainer**: Samy KHELIL
-* **Update date**: 14/02/2025
-* **Publisher**: Zenodo  
-* [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14867452.svg)](https://doi.org/10.5281/zenodo.14867452)
+* **Data Source**: IGN Géoplateforme WFS Service
+* **Service URL**: https://data.geopf.fr/wfs/ows
+* **Original Creator**: IGN (Institut National de l'Information Géographique et Forestière)
+* **Data Types Available**: 
+  - IGNF_LIDAR-HD_TA:mnt-dalle (Digital Terrain Model)
+  - IGNF_LIDAR-HD_TA:mns-dalle (Digital Surface Model)
+  - IGNF_LIDAR-HD_TA:mnh-dalle (Digital Height Model)
+  - IGNF_LIDAR-HD_TA:nuage-dalle (LiDAR Point Cloud)
+* **Access Method**: Real-time WFS queries
 
 *All intellectual property rights for the original geospatial data are held by IGN.*
 
