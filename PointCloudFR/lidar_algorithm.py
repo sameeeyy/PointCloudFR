@@ -172,14 +172,12 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         return "download"
 
     def displayName(self):
-        return self.tr("Download LiDAR and elevation data")
+        return self.tr("PointCloudFR")
 
     def shortHelpString(self):
         return self.tr(
             """
-PointCloudFR - French IGN LiDAR HD Data Downloader
-
-Downloads French IGN LiDAR HD elevation data that intersects with your Area of Interest (AOI).
+PointCloudFR - Downloads French IGN LiDAR HD elevation data that intersects with your Area of Interest (AOI).
 
 Data Types:
 - MNT: Digital Terrain Model (bare earth elevation)
@@ -191,11 +189,6 @@ Processing Options:
 - Download All: Get raw tiles without merging
 - Merge All: Combine all intersecting tiles
 - Most Coverage: Use tile with maximum overlap
-
-Usage:
-1. Define your Area of Interest
-2. Select data type and processing option
-3. Run download
 
 Copyright © 2024-2025 Samy KHELIL
 License: GNU General Public License v3.0
