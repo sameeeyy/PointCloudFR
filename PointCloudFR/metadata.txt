@@ -3,13 +3,13 @@ name=PointCloudFR
 qgisMinimumVersion=3.34
 supportsQt6=yes
 description=Downloads LiDAR tiles from IGN that intersect with the input AOI
-about=Downloads LiDAR point cloud data from IGN (French National Geographic Institute) based on an Area of Interest (AOI). Perfect for automated workflows in QGIS Model Builder.
+about=Downloads LiDAR point cloud data and derived products (MNT,MNS,MNH) from IGN (French National Geographic Institute) based on an Area of Interest (AOI). Perfect for automated workflows in QGIS Model Builder.
 version=2.0.0
 author=Samy KHELIL
 email=k2samy@hotmail.fr
 
 hasProcessingProvider=true
-tags=processing,lidar,download,ign,france,point cloud,nuage,elevation
+tags=processing,lidar,download,ign,france,point cloud,nuage,elevation,mnt,mns,mnh
 
 homepage=https://github.com/sameeeyy/PointCloudFR
 repository=https://github.com/sameeeyy/PointCloudFR
