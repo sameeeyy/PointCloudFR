@@ -172,7 +172,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         return "download"
 
     def displayName(self):
-        return self.tr("Download LiDAR and derived products datas")
+        return self.tr("Download LiDAR and derived products data")
 
     def shortHelpString(self):
         return self.tr(
