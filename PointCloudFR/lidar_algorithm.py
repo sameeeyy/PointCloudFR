@@ -83,8 +83,8 @@ class LidarLogger:
             log_dir = Path.home() / ".qgis" / "lidar_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = (
-                log_dir
-                / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+                    log_dir
+                    / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
             )
 
     def info(self, message: str):
@@ -142,12 +142,12 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         "LIDAR (Point Cloud)",
     ]
 
-    # Mapping to WFS codes
+    # Mapping to WFS codes (Updated based on user input and IGN Géoplateforme)
     DATA_TYPE_CODES = {
-        0: "IGNF_LIDAR-HD_TA:mnt-dalle",
-        1: "IGNF_LIDAR-HD_TA:mns-dalle",
-        2: "IGNF_LIDAR-HD_TA:mnh-dalle",
-        3: "IGNF_LIDAR-HD_TA:nuage-dalle",
+        0: "IGNF_MNT-LIDAR-HD:dalle",  # MNT
+        1: "IGNF_MNS-LIDAR-HD:dalle",  # MNS
+        2: "IGNF_MNH-LIDAR-HD:dalle",  # MNH
+        3: "IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle",  # LIDAR (Confirmed correct name)
     }
 
     STRATEGY_OPTIONS = [
@@ -172,7 +172,7 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
         return "download"
 
     def displayName(self):
-        return self.tr("Download LiDAR and derived products datas")
+        return self.tr("Download LiDAR and derived products data")
 
     def shortHelpString(self):
         return self.tr(
@@ -327,7 +327,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return True  # Assume OK if we can't check
 
     def _validate_file_integrity(
-        self, file_path: Path, expected_min_size: int = 1024
+            self, file_path: Path, expected_min_size: int = 1024
     ) -> bool:
         """Validate downloaded file integrity."""
         try:
@@ -428,10 +428,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return False
 
     def merge_rasters_gdal(
-        self,
-        raster_files: List[str],
-        output_folder: Path,
-        output_filename: str = "merged_output.tif",
+            self,
+            raster_files: List[str],
+            output_folder: Path,
+            output_filename: str = "merged_output.tif",
     ) -> str:
         """Merge raster .tif files using GDAL Python API."""
         try:
@@ -463,13 +463,14 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return ""
 
     def download_file(
-        self,
-        url: str,
-        output_path: str,
-        progress_tracker: DownloadProgressTracker,
-        force_download: bool = False,
+            self,
+            url: str,
+            output_path: str,
+            progress_tracker: DownloadProgressTracker,
+            force_download: bool = False,
+            tile_name: str = None,  # Added to fix filename issues
     ) -> Tuple[bool, str]:
-        """Download file with proper cancellation and force download handling."""
+        """Download file with proper cancellation, force download handling and naming."""
         output_path = Path(output_path)
         session = None
 
@@ -489,22 +490,38 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             session.mount("http://", adapter)
             session.mount("https://", adapter)
 
-            # Simple filename extraction from URL path (most universal method)
-            try:
-                url_path = url.split("?")[0]
-                filename = url_path.split("/")[-1]
-            except Exception:
-                filename = None
+            # --- FILENAME LOGIC START ---
+            filename = None
 
-            # Sanitize or generate filename
+            # 1. Use the provided tile name (Unique ID from IGN)
+            if tile_name:
+                filename = self._sanitize_filename(tile_name)
+
+            # 2. Fallback: Extract from URL if name is missing
             if not filename:
-                filename = f"tile_{uuid.uuid4().hex[:8]}.tif"
-            else:
-                filename = self._sanitize_filename(filename)
+                try:
+                    url_path = url.split("?")[0]
+                    filename = url_path.split("/")[-1]
+                except Exception:
+                    pass
 
-            # Ensure proper file extension
-            if not filename.endswith((".tif", ".tiff", ".laz", ".las")):
-                filename += ".tif"
+            # 3. Last resort: Generate UUID
+            if not filename or filename == "wfs" or filename == "ows":
+                filename = f"tile_{uuid.uuid4().hex[:8]}"
+
+            # 4. Handle Extensions Logic
+            # Check the URL to see if it's a point cloud (.laz)
+            url_lower = url.split("?")[0].lower()
+
+            if url_lower.endswith((".laz", ".las")):
+                # If URL is LiDAR, ensure filename ends in .laz
+                if not filename.lower().endswith((".laz", ".las")):
+                    filename += ".laz"
+            else:
+                # If URL is not explicitly LiDAR, and filename has no extension, assume TIF (for MNT/MNS/MNH)
+                if not filename.lower().endswith((".tif", ".tiff", ".laz", ".las", ".asc")):
+                    filename += ".tif"
+            # --- FILENAME LOGIC END ---
 
             output_file = output_path / filename
 
@@ -591,46 +608,62 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         return filename
 
     def _query_wfs_tiles(
-        self, aoi_geometry: QgsGeometry, data_type_code: str
+            self, aoi_geometry: QgsGeometry, data_type_code: str
     ) -> List[dict]:
-        """Query WFS service using proven working parameters."""
+        """Query WFS service with strict EPSG:2154 projection."""
         try:
             self.logger.info(f"Querying WFS for data type: {data_type_code}")
 
             # URL du service WFS de la Géoplateforme IGN
             wfs_url = "https://data.geopf.fr/wfs/ows"
 
-            # Convert geometry to Lambert-93 if needed
+            # 1. Force transformation of input geometry to Lambert-93 (EPSG:2154)
+            # This ensures our BBOX matches the native server projection
             aoi_l93 = aoi_geometry
+            source_crs = (
+                aoi_geometry.sourceCrs() if hasattr(aoi_geometry, "sourceCrs") else None
+            )
+
+            # If no CRS is defined, assume 2154, otherwise transform if different
+            target_crs = QgsCoordinateReferenceSystem("EPSG:2154")
             if (
-                hasattr(aoi_geometry, "sourceCrs")
-                and aoi_geometry.sourceCrs()
-                and aoi_geometry.sourceCrs().authid() != "EPSG:2154"
+                    source_crs
+                    and source_crs.isValid()
+                    and source_crs.authid() != "EPSG:2154"
             ):
+                self.logger.info(
+                    f"Reprojecting search area from {source_crs.authid()} to EPSG:2154"
+                )
                 transform = QgsCoordinateTransform(
-                    aoi_geometry.sourceCrs(),
-                    QgsCoordinateReferenceSystem("EPSG:2154"),
+                    source_crs,
+                    target_crs,
                     QgsProject.instance(),
                 )
                 aoi_l93 = QgsGeometry(aoi_geometry)
                 aoi_l93.transform(transform)
 
-            # Get bounding box
+            # 2. Get bounding box in EPSG:2154
             bbox = aoi_l93.boundingBox()
 
+            # 3. Construct parameters with explicit coordinate reference system
+            # The URN 'urn:ogc:def:crs:EPSG::2154' is crucial for WFS 2.0
             params = {
                 "SERVICE": "WFS",
                 "VERSION": "2.0.0",
                 "REQUEST": "GetFeature",
                 "TYPENAME": data_type_code,
                 "OUTPUTFORMAT": "application/json",
+                "SRSNAME": "EPSG:2154",  # Explicitly ask for response in Lambert-93
             }
 
+            # BBOX format: minx,miny,maxx,maxy,CRS_URN
             params["BBOX"] = (
-                f"{bbox.xMinimum()},{bbox.yMinimum()},{bbox.xMaximum()},{bbox.yMaximum()},urn:ogc:def:crs:EPSG::2154"
+                f"{bbox.xMinimum()},{bbox.yMinimum()},"
+                f"{bbox.xMaximum()},{bbox.yMaximum()},"
+                "urn:ogc:def:crs:EPSG::2154"
             )
 
-            self.logger.info(f"WFS query URL: {wfs_url}")
+            self.logger.info(f"WFS Query URL: {wfs_url}")
             self.logger.info(f"BBOX: {params['BBOX']}")
 
             try:
@@ -640,42 +673,58 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 # Parse GeoJSON response
                 geojson_data = response.json()
                 if "features" not in geojson_data:
-                    self.logger.error("No features found in WFS response")
+                    self.logger.warning(
+                        "WFS returned valid response but 0 features found."
+                    )
                     return []
 
                 tiles = []
                 for feature in geojson_data["features"]:
                     if "properties" in feature:
                         properties = feature["properties"]
-                        # Check for required properties
-                        if "url" in properties and "name" in properties:
+                        # The new platform uses 'url' and 'nom' or 'name'
+                        # We check both just in case
+                        url = properties.get("url")
+                        name = properties.get("name", properties.get("nom"))
+
+                        if url and name:
                             tiles.append(
                                 {
-                                    "url": properties["url"],
-                                    "name": properties["name"],
+                                    "url": url,
+                                    "name": name,
                                     "geometry": feature.get("geometry"),
                                     "properties": properties,
                                 }
                             )
 
-                self.logger.info(f"Found {len(tiles)} tiles")
+                self.logger.info(f"Found {len(tiles)} tiles intersecting the envelope")
                 return tiles
 
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 400:
+                    self.logger.error(
+                        f"WFS 400 Error. The server rejected the request. "
+                        f"Check if layer '{data_type_code}' exists."
+                    )
+                else:
+                    self.logger.error(f"HTTP Error during WFS request: {str(e)}")
+                return []
+
             except requests.exceptions.RequestException as e:
-                self.logger.error(f"Error during WFS request: {str(e)}")
+                self.logger.error(f"Connection error during WFS request: {str(e)}")
                 return []
             except (ValueError, KeyError) as e:
                 self.logger.error(f"Error parsing WFS response: {str(e)}")
                 if "response" in locals():
-                    self.logger.error(f"Response content: {response.text[:500]}...")
+                    self.logger.error(f"Response snippet: {response.text[:200]}")
                 return []
 
         except Exception as e:
-            self.logger.error(f"Error querying WFS: {str(e)}")
+            self.logger.error(f"Critical error querying WFS: {str(e)}")
             return []
 
     def _filter_intersecting_tiles(
-        self, tiles: List[dict], aoi_geometry: QgsGeometry
+            self, tiles: List[dict], aoi_geometry: QgsGeometry
     ) -> List[dict]:
         """Filter tiles that actually intersect with AOI geometry."""
         try:
@@ -715,7 +764,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         return True
 
     def _select_best_tiles(
-        self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int
+            self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int
     ) -> List[dict]:
         """Select tiles based on strategy with improved coverage calculation."""
         if not tiles:
@@ -740,6 +789,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             for tile in tiles:
                 if "geometry" in tile and tile["geometry"]:
                     try:
+                        # Create QgsGeometry from GeoJSON geometry
                         coords = tile["geometry"]["coordinates"][0]
                         tile_geom = QgsGeometry.fromPolygonXY(
                             [[QgsPointXY(coord[0], coord[1]) for coord in coords]]
@@ -884,7 +934,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             downloaded_files = []
             try:
                 with concurrent.futures.ThreadPoolExecutor(
-                    max_workers=max_downloads
+                        max_workers=max_downloads
                 ) as executor:
                     futures = [
                         executor.submit(
@@ -893,6 +943,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                             str(downloads_dir),
                             progress_tracker,
                             force_download,
+                            tile["name"],  # Pass the unique name here
                         )
                         for tile in selected_tiles
                     ]
@@ -976,7 +1027,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 }
 
             elif (
-                merge_strategy == 1 and len(downloaded_files) > 1
+                    merge_strategy == 1 and len(downloaded_files) > 1
             ):  # Merge All Intersecting
                 self.logger.info(
                     f"Strategy: Merge All - Merging {len(downloaded_files)} files"
