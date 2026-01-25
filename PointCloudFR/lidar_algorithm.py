@@ -190,7 +190,7 @@ Processing Options:
 - Merge All: Combine all intersecting tiles
 - Most Coverage: Use tile with maximum overlap
 
-Copyright © 2024-2025 Samy KHELIL
+Copyright © 2025-2026 Samy KHELIL
 License: GNU General Public License v3.0
 Repository: https://github.com/sameeeyy/PointCloudFR
 """
