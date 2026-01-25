@@ -83,8 +83,8 @@ class LidarLogger:
             log_dir = Path.home() / ".qgis" / "lidar_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = (
-                    log_dir
-                    / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+                log_dir
+                / f'lidar_download_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
             )
 
     def info(self, message: str):
@@ -327,7 +327,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return True  # Assume OK if we can't check
 
     def _validate_file_integrity(
-            self, file_path: Path, expected_min_size: int = 1024
+        self, file_path: Path, expected_min_size: int = 1024
     ) -> bool:
         """Validate downloaded file integrity."""
         try:
@@ -428,10 +428,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return False
 
     def merge_rasters_gdal(
-            self,
-            raster_files: List[str],
-            output_folder: Path,
-            output_filename: str = "merged_output.tif",
+        self,
+        raster_files: List[str],
+        output_folder: Path,
+        output_filename: str = "merged_output.tif",
     ) -> str:
         """Merge raster .tif files using GDAL Python API."""
         try:
@@ -463,12 +463,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return ""
 
     def download_file(
-            self,
-            url: str,
-            output_path: str,
-            progress_tracker: DownloadProgressTracker,
-            force_download: bool = False,
-            tile_name: str = None,  # Added to fix filename issues
+        self,
+        url: str,
+        output_path: str,
+        progress_tracker: DownloadProgressTracker,
+        force_download: bool = False,
+        tile_name: str = None,  # Added to fix filename issues
     ) -> Tuple[bool, str]:
         """Download file with proper cancellation, force download handling and naming."""
         output_path = Path(output_path)
@@ -519,7 +519,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     filename += ".laz"
             else:
                 # If URL is not explicitly LiDAR, and filename has no extension, assume TIF (for MNT/MNS/MNH)
-                if not filename.lower().endswith((".tif", ".tiff", ".laz", ".las", ".asc")):
+                if not filename.lower().endswith(
+                    (".tif", ".tiff", ".laz", ".las", ".asc")
+                ):
                     filename += ".tif"
             # --- FILENAME LOGIC END ---
 
@@ -608,7 +610,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         return filename
 
     def _query_wfs_tiles(
-            self, aoi_geometry: QgsGeometry, data_type_code: str
+        self, aoi_geometry: QgsGeometry, data_type_code: str
     ) -> List[dict]:
         """Query WFS service with strict EPSG:2154 projection."""
         try:
@@ -627,9 +629,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             # If no CRS is defined, assume 2154, otherwise transform if different
             target_crs = QgsCoordinateReferenceSystem("EPSG:2154")
             if (
-                    source_crs
-                    and source_crs.isValid()
-                    and source_crs.authid() != "EPSG:2154"
+                source_crs
+                and source_crs.isValid()
+                and source_crs.authid() != "EPSG:2154"
             ):
                 self.logger.info(
                     f"Reprojecting search area from {source_crs.authid()} to EPSG:2154"
@@ -724,7 +726,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             return []
 
     def _filter_intersecting_tiles(
-            self, tiles: List[dict], aoi_geometry: QgsGeometry
+        self, tiles: List[dict], aoi_geometry: QgsGeometry
     ) -> List[dict]:
         """Filter tiles that actually intersect with AOI geometry."""
         try:
@@ -764,7 +766,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         return True
 
     def _select_best_tiles(
-            self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int
+        self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int
     ) -> List[dict]:
         """Select tiles based on strategy with improved coverage calculation."""
         if not tiles:
@@ -934,7 +936,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             downloaded_files = []
             try:
                 with concurrent.futures.ThreadPoolExecutor(
-                        max_workers=max_downloads
+                    max_workers=max_downloads
                 ) as executor:
                     futures = [
                         executor.submit(
@@ -1027,7 +1029,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 }
 
             elif (
-                    merge_strategy == 1 and len(downloaded_files) > 1
+                merge_strategy == 1 and len(downloaded_files) > 1
             ):  # Merge All Intersecting
                 self.logger.info(
                     f"Strategy: Merge All - Merging {len(downloaded_files)} files"
