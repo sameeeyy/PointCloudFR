@@ -9,7 +9,7 @@ author=Samy KHELIL
 email=k2samy@hotmail.fr
 
 hasProcessingProvider=true
-tags=processing,lidar,download,ign,france,point cloud,nuage,elevation,mnt,mns,mnh
+tags=processing,lidar,download,ign,france,point cloud,nuage,elevation,mnt,mns,mnh,download
 
 homepage=https://github.com/sameeeyy/PointCloudFR
 repository=https://github.com/sameeeyy/PointCloudFR
