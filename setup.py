@@ -3,7 +3,7 @@ import platform
 import re
 import sys
 from pathlib import Path
-from shutil import copytree, ignore_patterns, make_archive, rmtree, unpack_archive
+from shutil import copy2, copytree, ignore_patterns, make_archive, rmtree, unpack_archive
 
 
 class QgisSetup:
@@ -230,6 +230,9 @@ class QgisSetup:
         sdist.parent.mkdir(parents=True, exist_ok=True)
         ignore_list = ignore_patterns("setup.py", "__pycache__*", "*.egg-info")
         copytree(manifest.parent, sdist, ignore=ignore_list)
+        license_path = path / "LICENSE"
+        if license_path.exists():
+            copy2(license_path, sdist / "LICENSE")
         print("ok")
         if update:
             cls.bump(sdist, cls.next(project))
