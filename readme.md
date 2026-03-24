@@ -110,7 +110,7 @@ We welcome professional contributions, bug reports, and structural ideas.
 
 ## 📊 Data Source & Attribution
 
-PointCloudFR retrieves analytical geospatial structures orchestrated by the **French National Geographic Institute (IGN)** through the Géoplateforme APIs. 
+PointCloudFR retrieves analytical geospatial structures orchestrated by the **French National Geographic Institute (IGN)** through the Géoplateforme APIs.
 
 * **Web Feature Service**: [IGN Géoplateforme WFS (EPSG:2154)](https://data.geopf.fr/wfs/ows)
 * **Datasets Leveraged**:
