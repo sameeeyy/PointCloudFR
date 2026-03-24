@@ -12,6 +12,8 @@ from typing import List, Tuple
 
 import processing
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
@@ -551,7 +553,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             # Download with temporary file
             with self._create_temp_file(output_path, "download_") as temp_file_path:
                 with open(temp_file_path, "wb") as temp_file:
-                    with session.get(url, stream=True, timeout=(10, 30)) as response:
+                    with session.get(url, stream=True, timeout=(10, 30), verify=False) as response:
                         response.raise_for_status()
                         for data in response.iter_content(chunk_size=8192):
                             # Vérification d'annulation plus fréquente
@@ -667,7 +669,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.info(f"BBOX: {params['BBOX']}")
 
             try:
-                response = requests.get(wfs_url, params=params, timeout=30)
+                response = requests.get(wfs_url, params=params, timeout=30, verify=False)
                 response.raise_for_status()
 
                 # Parse GeoJSON response
