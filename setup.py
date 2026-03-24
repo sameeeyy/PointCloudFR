@@ -3,7 +3,14 @@ import platform
 import re
 import sys
 from pathlib import Path
-from shutil import copy2, copytree, ignore_patterns, make_archive, rmtree, unpack_archive
+from shutil import (
+    copy2,
+    copytree,
+    ignore_patterns,
+    make_archive,
+    rmtree,
+    unpack_archive,
+)
 
 
 class QgisSetup:
