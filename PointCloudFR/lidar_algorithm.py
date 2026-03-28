@@ -194,7 +194,7 @@ Processing Options:
 - Most Coverage: Use tile with maximum overlap
 
 Copyright © 2025-2026 Samy KHELIL
-License: GNU General Public License v3.0
+License: GNU General Public License v2.0 or later
 Repository: https://github.com/sameeeyy/PointCloudFR
 """
         )

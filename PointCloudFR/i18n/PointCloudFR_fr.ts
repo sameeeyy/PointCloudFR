@@ -141,8 +141,8 @@
     </message>
     <message>
         <location filename="../lidar_algorithm.py" line="0"/>
-        <source>Released under GNU General Public License v3 - you are free to use, modify and share under the terms of the GPL v3 license.</source>
-        <translation>Publié sous licence GNU General Public License v3 - vous êtes libre d'utiliser, de modifier et de partager selon les termes de la licence GPL v3.</translation>
+        <source>Released under GNU General Public License v2 or later - you are free to use, modify and share under the terms of the GPL v2 license or later.</source>
+        <translation>Publié sous licence GNU General Public License v2 ou ultérieure - vous êtes libre d'utiliser, de modifier et de partager selon les termes de la licence GPL v2 ou ultérieure.</translation>
     </message>
     <message>
         <location filename="../lidar_algorithm.py" line="0"/>

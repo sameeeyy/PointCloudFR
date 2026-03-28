@@ -5,7 +5,7 @@
 **Download French IGN LiDAR data and elevation products directly from QGIS**
 
 [![QGIS Version](https://img.shields.io/badge/QGIS-3.34%20|%204.x-589632?logo=qgis&logoColor=white)](https://qgis.org/)
-[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License](https://img.shields.io/badge/License-GPLv2+-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 [![Release](https://img.shields.io/github/v/release/sameeeyy/PointCloudFR)](https://github.com/sameeeyy/PointCloudFR/releases)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 
@@ -123,7 +123,7 @@ PointCloudFR retrieves analytical geospatial structures orchestrated by the **Fr
 
 ## 📝 License
 
-Distributed under the **GNU General Public License v3.0**. See `LICENSE` for more information.
+Distributed under the **GNU General Public License v2.0 or later**. See `LICENSE` for more information.
 
 ---
 <div align="center">
