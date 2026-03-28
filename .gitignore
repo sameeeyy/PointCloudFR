@@ -33,3 +33,4 @@ dist/*
 # OS temp
 .DS_Store
 .ini
+PointCloudFR/dist/PointCloudFR-2.2.0.zip
