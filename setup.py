@@ -235,7 +235,18 @@ class QgisSetup:
 
         print("ok\ncreating a source distribution ... ", end="")
         sdist.parent.mkdir(parents=True, exist_ok=True)
-        ignore_list = ignore_patterns("setup.py", "__pycache__*", "*.egg-info", "build", "dist", ".git", ".venv", "venv", ".idea", ".vscode")
+        ignore_list = ignore_patterns(
+            "setup.py",
+            "__pycache__*",
+            "*.egg-info",
+            "build",
+            "dist",
+            ".git",
+            ".venv",
+            "venv",
+            ".idea",
+            ".vscode",
+        )
         copytree(manifest.parent, sdist, ignore=ignore_list)
         license_path = path / "LICENSE"
         if license_path.exists():
