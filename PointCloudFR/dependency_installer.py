@@ -23,9 +23,10 @@ class DependencyInstaller:
 
     def _get_pip_path(self):
         """Get the appropriate pip executable path."""
+        import shutil
         if platform.system() == "Windows":
             return os.path.join(sys.prefix, "scripts", "pip")
-        return "pip3" if os.system("which pip3") == 0 else "pip"
+        return "pip3" if shutil.which("pip3") else "pip"
 
     def check_dependencies(self):
         """Check if required packages are installed with version verification."""
@@ -126,11 +127,11 @@ class DependencyInstaller:
         """Install a single package using multiple methods."""
         methods = [
             # Method 1: Using pip from scripts directory
-            lambda: os.system(
-                f'"{os.path.join(sys.prefix, "scripts", "pip")}" install {package}'
+            lambda: subprocess.call(
+                [os.path.join(sys.prefix, "scripts", "pip"), "install", package]
             ),
             # Method 2: Using system pip
-            lambda: os.system(f"{self._get_pip_path()} install {package}"),
+            lambda: subprocess.call([self._get_pip_path(), "install", package]),
             # Method 3: Using python -m pip
             lambda: subprocess.check_call(
                 [sys.executable, "-m", "pip", "install", package]
@@ -153,7 +154,7 @@ class DependencyInstaller:
                 # Try batch file installation first on Windows
                 process = subprocess.Popen(
                     [str(self.install_script_path)],
-                    shell=True,
+                    shell=False,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                 )
