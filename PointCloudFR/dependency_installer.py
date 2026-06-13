@@ -24,6 +24,7 @@ class DependencyInstaller:
     def _get_pip_path(self):
         """Get the appropriate pip executable path."""
         import shutil
+
         if platform.system() == "Windows":
             return os.path.join(sys.prefix, "scripts", "pip")
         return "pip3" if shutil.which("pip3") else "pip"
