@@ -564,7 +564,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             # Download with temporary file
             # Determine SSL verification from environment (defaults to not verifying to support corporate VPNs)
             verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
-            
+
             with self._create_temp_file(output_path, "download_") as temp_file_path:
                 with open(temp_file_path, "wb") as temp_file:
                     with session.get(
