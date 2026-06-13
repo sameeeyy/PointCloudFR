@@ -484,11 +484,19 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # Create session with retry strategy
             session = requests.Session()
-            retry_strategy = Retry(
-                total=3,
-                status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["HEAD", "GET", "OPTIONS"],
-            )
+            _retry_methods = ["HEAD", "GET", "OPTIONS"]
+            try:
+                retry_strategy = Retry(
+                    total=3,
+                    status_forcelist=[429, 500, 502, 503, 504],
+                    allowed_methods=_retry_methods,
+                )
+            except TypeError:
+                retry_strategy = Retry(
+                    total=3,
+                    status_forcelist=[429, 500, 502, 503, 504],
+                    method_whitelist=_retry_methods,
+                )
             adapter = HTTPAdapter(max_retries=retry_strategy)
             session.mount("http://", adapter)
             session.mount("https://", adapter)
