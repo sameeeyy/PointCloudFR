@@ -562,10 +562,13 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 return False, ""
 
             # Download with temporary file
+            # Determine SSL verification from environment (defaults to not verifying to support corporate VPNs)
+            verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
+            
             with self._create_temp_file(output_path, "download_") as temp_file_path:
                 with open(temp_file_path, "wb") as temp_file:
                     with session.get(
-                        url, stream=True, timeout=(10, 30), verify=False
+                        url, stream=True, timeout=(10, 30), verify=verify_ssl
                     ) as response:
                         response.raise_for_status()
                         for data in response.iter_content(chunk_size=8192):
@@ -682,8 +685,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.info(f"BBOX: {params['BBOX']}")
 
             try:
+                # Determine SSL verification from environment (defaults to not verifying to support corporate VPNs)
+                verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
                 response = requests.get(
-                    wfs_url, params=params, timeout=30, verify=False
+                    wfs_url, params=params, timeout=30, verify=verify_ssl
                 )
                 response.raise_for_status()
 

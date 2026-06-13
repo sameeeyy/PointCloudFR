@@ -201,7 +201,7 @@ class DependencyInstaller:
                     # Use batch file on Windows
                     process = subprocess.Popen(
                         [str(self.install_script_path)],
-                        shell=True,
+                        shell=False,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                     )
