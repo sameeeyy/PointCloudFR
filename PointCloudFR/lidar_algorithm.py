@@ -18,9 +18,9 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-from .core.wfs_client import query_wfs_tiles
 from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
+from .core.wfs_client import query_wfs_tiles
 from .utils.logger import LidarLogger
 
 
@@ -208,7 +208,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             self.logger.info(f"- Output folder: {output_folder}")
             self.logger.info(f"- Max concurrent downloads: {max_downloads}")
             self.logger.info(f"- Force download: {force_download}")
-            self.logger.info(f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}")
+            self.logger.info(
+                f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}"
+            )
             self.logger.info(f"- Load layer after download: {load_layer}")
 
             downloads_dir = output_folder / "downloads"
@@ -286,15 +288,19 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
                 for future in concurrent.futures.as_completed(futures):
                     url_id = futures[future]
-                    
+
                     if self.feedback.isCanceled():
-                        self.logger.info("Cancellation requested - stopping all downloads...")
+                        self.logger.info(
+                            "Cancellation requested - stopping all downloads..."
+                        )
                         cancelled_count = 0
                         for f in futures:
                             if not f.done():
                                 if f.cancel():
                                     cancelled_count += 1
-                        self.logger.info(f"Cancelled {cancelled_count} pending downloads")
+                        self.logger.info(
+                            f"Cancelled {cancelled_count} pending downloads"
+                        )
                         executor.shutdown(wait=False)
                         break
 
@@ -326,7 +332,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 if data_type != 3:
                     self.logger.info("Starting raster merge process...")
                     merged_file = raster_utils.merge_rasters_gdal(
-                        downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.tif"
+                        downloaded_files,
+                        output_folder,
+                        f"merged_{data_type_code.split(':')[1]}.tif",
                     )
                     if merged_file:
                         final_output = merged_file
@@ -334,14 +342,18 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                         if load_layer:
                             raster_utils.load_raster_layer(merged_file, data_type)
                     else:
-                        self.logger.warning("Raster merge failed, falling back to individual layers")
+                        self.logger.warning(
+                            "Raster merge failed, falling back to individual layers"
+                        )
                         if load_layer:
                             for f in downloaded_files:
                                 raster_utils.load_raster_layer(f, data_type)
                 else:
                     self.logger.info("Starting point cloud merge process...")
                     merged_file = raster_utils.merge_point_clouds(
-                        downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.laz"
+                        downloaded_files,
+                        output_folder,
+                        f"merged_{data_type_code.split(':')[1]}.laz",
                     )
                     if merged_file:
                         final_output = merged_file
@@ -352,7 +364,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                                 "To visualize, manually drag and drop the file into QGIS."
                             )
                     else:
-                        self.logger.warning("Point cloud merge failed, falling back to individual layers")
+                        self.logger.warning(
+                            "Point cloud merge failed, falling back to individual layers"
+                        )
                         if load_layer:
                             for f in downloaded_files:
                                 raster_utils.load_point_cloud_layer(f)

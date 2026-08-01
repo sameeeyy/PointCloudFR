@@ -1,12 +1,12 @@
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsSettings
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QMessageBox
 
-from .utils.config import get_plugin_version, PluginSettings, PLUGIN_NAME
+from .utils.config import PLUGIN_NAME, PluginSettings, get_plugin_version
 from .utils.installer import DependencyInstaller
 
 # Plugin version dynamically read from metadata.txt
@@ -120,7 +120,9 @@ def classFactory(iface):
         # Install dependencies
         installer = DependencyInstaller()
         if not installer.install():
-            show_error_message("Failed to install required dependencies. Please check the QGIS log for details.")
+            show_error_message(
+                "Failed to install required dependencies. Please check the QGIS log for details."
+            )
             return None
 
         # Show welcome message only on first ever installation
@@ -136,7 +138,9 @@ def classFactory(iface):
         return LidarPlugin(iface)
 
     except Exception as e:
-        show_error_message(f"Error loading plugin: {str(e)}\n\nPlease check the QGIS log for details.")
+        show_error_message(
+            f"Error loading plugin: {str(e)}\n\nPlease check the QGIS log for details."
+        )
         QgsMessageLog.logMessage(
             f"Error loading plugin: {str(e)}", PLUGIN_NAME, Qgis.Critical
         )

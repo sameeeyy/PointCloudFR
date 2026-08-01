@@ -1,14 +1,18 @@
 import os
-import requests
 from typing import List
+
+import requests
 from qgis.core import (
-    QgsGeometry,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
+    QgsGeometry,
     QgsProject,
 )
 
-def query_wfs_tiles(aoi_geometry: QgsGeometry, data_type_code: str, logger) -> List[dict]:
+
+def query_wfs_tiles(
+    aoi_geometry: QgsGeometry, data_type_code: str, logger
+) -> List[dict]:
     """Query WFS service with strict EPSG:2154 projection."""
     try:
         logger.info(f"Querying WFS for data type: {data_type_code}")
@@ -25,11 +29,7 @@ def query_wfs_tiles(aoi_geometry: QgsGeometry, data_type_code: str, logger) -> L
 
         # If no CRS is defined, assume 2154, otherwise transform if different
         target_crs = QgsCoordinateReferenceSystem("EPSG:2154")
-        if (
-            source_crs
-            and source_crs.isValid()
-            and source_crs.authid() != "EPSG:2154"
-        ):
+        if source_crs and source_crs.isValid() and source_crs.authid() != "EPSG:2154":
             logger.info(
                 f"Reprojecting search area from {source_crs.authid()} to EPSG:2154"
             )
@@ -76,9 +76,7 @@ def query_wfs_tiles(aoi_geometry: QgsGeometry, data_type_code: str, logger) -> L
             # Parse GeoJSON response
             geojson_data = response.json()
             if "features" not in geojson_data:
-                logger.warning(
-                    "WFS returned valid response but 0 features found."
-                )
+                logger.warning("WFS returned valid response but 0 features found.")
                 return []
 
             tiles = []

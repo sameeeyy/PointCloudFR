@@ -1,9 +1,11 @@
 import configparser
 from pathlib import Path
+
 from qgis.core import QgsSettings
 
 PLUGIN_NAME = "PointCloudFR"
 PLUGIN_DIR = Path(__file__).parent.parent
+
 
 def get_plugin_version() -> str:
     """Reads the plugin version dynamically from metadata.txt."""
@@ -14,6 +16,7 @@ def get_plugin_version() -> str:
         return config.get("general", "version", fallback="1.0.0")
     except Exception:
         return "1.0.0"
+
 
 class PluginSettings:
     """Class to manage plugin settings using QgsSettings."""

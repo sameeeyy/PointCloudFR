@@ -10,6 +10,7 @@ from qgis.core import (
     QgsRasterLayer,
 )
 
+
 class RasterUtils:
     """Utilities for handling raster and point cloud data in QGIS."""
 
@@ -107,18 +108,18 @@ class RasterUtils:
         """Merge point cloud files using PDAL via QGIS Processing."""
         try:
             import processing
-            
+
             output_path = output_folder / output_filename
-            
+
             params = {
-                'LAYERS': [f"copc://{path}" for path in pc_files],
-                'FILTER_EXPRESSION': '',
-                'FILTER_EXTENT': None,
-                'OUTPUT': str(output_path)
+                "LAYERS": [f"copc://{path}" for path in pc_files],
+                "FILTER_EXPRESSION": "",
+                "FILTER_EXTENT": None,
+                "OUTPUT": str(output_path),
             }
-            
+
             processing.run("pdal:merge", params)
-            
+
             if output_path.exists():
                 self.logger.info(
                     f"Successfully merged {len(pc_files)} point cloud files to: {output_path}"
@@ -127,7 +128,7 @@ class RasterUtils:
             else:
                 self.logger.error("PDAL merge completed but output file not found")
                 return ""
-                
+
         except Exception as e:
             self.logger.error(f"Error during point cloud merge: {str(e)}")
             return ""
@@ -143,12 +144,12 @@ class RasterUtils:
                     try:
                         geom_type = tile["geometry"].get("type", "Polygon")
                         coords = tile["geometry"]["coordinates"]
-                        
+
                         if geom_type == "MultiPolygon":
                             ring = coords[0][0]
                         else:
                             ring = coords[0]
-                            
+
                         tile_geom = QgsGeometry.fromPolygonXY(
                             [[QgsPointXY(float(c[0]), float(c[1])) for c in ring]]
                         )
@@ -195,12 +196,12 @@ class RasterUtils:
                     try:
                         geom_type = tile["geometry"].get("type", "Polygon")
                         coords = tile["geometry"]["coordinates"]
-                        
+
                         if geom_type == "MultiPolygon":
                             ring = coords[0][0]
                         else:
                             ring = coords[0]
-                            
+
                         tile_geom = QgsGeometry.fromPolygonXY(
                             [[QgsPointXY(float(c[0]), float(c[1])) for c in ring]]
                         )

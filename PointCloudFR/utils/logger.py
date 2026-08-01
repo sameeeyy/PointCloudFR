@@ -1,8 +1,10 @@
 from datetime import datetime
 from pathlib import Path
+
 from qgis.core import Qgis, QgsMessageLog
 
 PLUGIN_NAME = "PointCloudFR"
+
 
 class LidarLogger:
     """Custom logger for LiDAR operations"""
