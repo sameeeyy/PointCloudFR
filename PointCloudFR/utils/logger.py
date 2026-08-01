@@ -23,21 +23,21 @@ class LidarLogger:
         """Log info message"""
         if self.feedback:
             self.feedback.pushInfo(message)
-        QgsMessageLog.logMessage(message, PLUGIN_NAME, Qgis.Info)
+        QgsMessageLog.logMessage(message, PLUGIN_NAME, Qgis.MessageLevel.Info)
         self._write_to_file("INFO", message)
 
     def error(self, message: str):
         """Log error message"""
         if self.feedback:
             self.feedback.reportError(message)
-        QgsMessageLog.logMessage(message, PLUGIN_NAME, Qgis.Critical)
+        QgsMessageLog.logMessage(message, PLUGIN_NAME, Qgis.MessageLevel.Critical)
         self._write_to_file("ERROR", message)
 
     def warning(self, message: str):
         """Log warning message"""
         if self.feedback:
             self.feedback.pushWarning(message)
-        QgsMessageLog.logMessage(message, PLUGIN_NAME, Qgis.Warning)
+        QgsMessageLog.logMessage(message, PLUGIN_NAME, Qgis.MessageLevel.Warning)
         self._write_to_file("WARNING", message)
 
     def _write_to_file(self, level: str, message: str):

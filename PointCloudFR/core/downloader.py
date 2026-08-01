@@ -220,8 +220,8 @@ class Downloader:
                 try:
                     url_path = url.split("?")[0]
                     filename = url_path.split("/")[-1]
-                except Exception:
-                    pass
+                except (AttributeError, IndexError):
+                    filename = None
 
             if not filename or filename == "wfs" or filename == "ows":
                 filename = f"tile_{uuid.uuid4().hex[:8]}"

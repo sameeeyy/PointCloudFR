@@ -61,6 +61,8 @@ class QgisSetup:
         must contain at least the 'name' and 'version' attributes.
     """
 
+    FOLDER_NAME = "point_cloud_fr"
+
     if (host := platform.system()) == "Windows":
         app_data = Path.home() / "AppData/Roaming/QGIS/QGIS3"
     elif host == "Darwin":
@@ -224,10 +226,11 @@ class QgisSetup:
             bdist = Path(dist_dir) / f"{stem}.zip"
         else:
             bdist = path / dist_dir / f"{stem}.zip"
+        folder_name = cls.FOLDER_NAME
         if Path(build_dir).is_absolute():
-            sdist = Path(build_dir) / build_dir / stem / name
+            sdist = Path(build_dir) / build_dir / stem / folder_name
         else:
-            sdist = project / build_dir / stem / name
+            sdist = project / build_dir / stem / folder_name
 
         print("removing previous builds ... ", end="")
         bdist.unlink(missing_ok=True)
@@ -248,16 +251,25 @@ class QgisSetup:
             ".vscode",
         )
         copytree(manifest.parent, sdist, ignore=ignore_list)
-        license_path = path / "LICENSE"
-        if license_path.exists():
-            copy2(license_path, sdist / "LICENSE")
+        
+        # Check for LICENSE in candidate locations and copy into sdist
+        for lic_candidate in [
+            path / "LICENSE",
+            manifest.parent / "LICENSE",
+            manifest.parent.parent / "LICENSE",
+            Path("LICENSE"),
+        ]:
+            if lic_candidate.exists():
+                copy2(lic_candidate, sdist / "LICENSE")
+                break
+
         print("ok")
         if update:
             cls.bump(sdist, cls.next(project))
 
         print("packaging the binaries ... ", end="")
         make_archive(
-            bdist.with_suffix(""), format="zip", root_dir=sdist.parent, base_dir=name
+            bdist.with_suffix(""), format="zip", root_dir=sdist.parent, base_dir=folder_name
         )
 
         if not keep_temp:  # clean-up build mess
@@ -430,12 +442,12 @@ class QgisSetup:
             except StopIteration:
                 raise RuntimeError(f"Could not find a valid QGIS plugin in '{path}'!")
 
-            target = self.plugins_directory(args.profile) / name
+            target = self.plugins_directory(args.profile) / self.FOLDER_NAME
             if target.exists(follow_symlinks=False) and args.force:
-                self.remove(name, args.profile)
+                self.remove(self.FOLDER_NAME, args.profile)
 
             print(
-                f"linking {name} directory to QGIS {args.profile} profile ... ", end=""
+                f"linking {self.FOLDER_NAME} directory to QGIS {args.profile} profile ... ", end=""
             )
 
             if target.exists(follow_symlinks=False):
@@ -447,7 +459,7 @@ class QgisSetup:
                 return
         else:
             plugin = self.bdist(args.project)
-            name = plugin.stem.rsplit("-", 1)[0]
+            name = self.FOLDER_NAME
             target = self.plugins_directory(args.profile) / name
             if target.exists(follow_symlinks=False) and args.force:
                 self.remove(name, args.profile)
@@ -492,19 +504,7 @@ class QgisSetup:
         # now that we're inside a subcommand, ignore the first
         args = parser.parse_args(sys.argv[2:])
 
-        try:  # fetch & parse plugin manifest
-            path = Path(args.project)
-            if path.is_file():
-                path = path.parent
-            manifest = next(path.glob("**/metadata.txt"))
-            metadata = manifest.read_text()
-            name = re.search(r"name\s*?=\s*?(\S+)", metadata)
-            assert name, f"Plugin manifest '{manifest}' has no attribute `name`!"
-            name = name.group(1)
-        except StopIteration:
-            raise RuntimeError(f"Could not find a valid QGIS plugin in '{path}'!")
-
-        return self.remove(name, args.profile)
+        return self.remove(self.FOLDER_NAME, args.profile)
 
 
 if __name__ == "__main__":

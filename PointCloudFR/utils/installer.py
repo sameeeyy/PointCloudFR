@@ -38,7 +38,7 @@ def check_package_version(package_name: str, required_version: str = None) -> bo
         return parse_version(installed_version) >= parse_version(required_version)
     except Exception as e:
         QgsMessageLog.logMessage(
-            f"Error checking {package_name}: {str(e)}", PLUGIN_NAME, Qgis.Warning
+            f"Error checking {package_name}: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Warning
         )
         return False
 
@@ -84,7 +84,7 @@ def _find_python_executable() -> str:
         for candidate in candidates:
             if candidate.exists():
                 QgsMessageLog.logMessage(
-                    f"Found Python at: {candidate}", PLUGIN_NAME, Qgis.Info
+                    f"Found Python at: {candidate}", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
                 return str(candidate)
 
@@ -99,7 +99,7 @@ def _find_python_executable() -> str:
         for candidate in candidates:
             if candidate.exists():
                 QgsMessageLog.logMessage(
-                    f"Found Python at: {candidate}", PLUGIN_NAME, Qgis.Info
+                    f"Found Python at: {candidate}", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
                 return str(candidate)
 
@@ -107,7 +107,7 @@ def _find_python_executable() -> str:
     QgsMessageLog.logMessage(
         f"Could not find Python interpreter, falling back to sys.executable: {sys.executable}",
         PLUGIN_NAME,
-        Qgis.Warning,
+        Qgis.MessageLevel.Warning,
     )
     return sys.executable
 
@@ -123,7 +123,7 @@ class DependencyInstaller:
         try:
             if not self.requirements_path.exists():
                 QgsMessageLog.logMessage(
-                    "requirements.txt not found", PLUGIN_NAME, Qgis.Critical
+                    "requirements.txt not found", PLUGIN_NAME, Qgis.MessageLevel.Critical
                 )
                 return None
 
@@ -158,14 +158,14 @@ class DependencyInstaller:
                     QgsMessageLog.logMessage(
                         f"Package {requirement} needs installation",
                         PLUGIN_NAME,
-                        Qgis.Info,
+                        Qgis.MessageLevel.Info,
                     )
 
             return missing
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error checking dependencies: {str(e)}", PLUGIN_NAME, Qgis.Critical
+                f"Error checking dependencies: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
             )
             return None
 
@@ -219,7 +219,7 @@ class DependencyInstaller:
             try:
                 cmd = self._get_pip_install_command()
                 QgsMessageLog.logMessage(
-                    f"Running pip command: {' '.join(cmd)}", PLUGIN_NAME, Qgis.Info
+                    f"Running pip command: {' '.join(cmd)}", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
 
                 # Use CREATE_NO_WINDOW on Windows to avoid flashing console
@@ -227,8 +227,9 @@ class DependencyInstaller:
                 if sys.platform == "win32":
                     kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
 
-                process = subprocess.Popen(
+                process = subprocess.Popen(  # nosec B603
                     cmd,
+                    shell=False,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     **kwargs,
@@ -240,23 +241,24 @@ class DependencyInstaller:
 
                 if stdout_text:
                     QgsMessageLog.logMessage(
-                        f"pip stdout: {stdout_text}", PLUGIN_NAME, Qgis.Info
+                        f"pip stdout: {stdout_text}", PLUGIN_NAME, Qgis.MessageLevel.Info
                     )
 
                 if process.returncode != 0:
                     QgsMessageLog.logMessage(
                         f"pip install failed (rc={process.returncode}): {stderr_text}",
                         PLUGIN_NAME,
-                        Qgis.Critical,
+                        Qgis.MessageLevel.Critical,
                     )
 
                     # Retry without --user flag (some environments don't support it)
                     QgsMessageLog.logMessage(
-                        "Retrying without --user flag...", PLUGIN_NAME, Qgis.Info
+                        "Retrying without --user flag...", PLUGIN_NAME, Qgis.MessageLevel.Info
                     )
                     cmd_retry = [c for c in cmd if c != "--user"]
-                    process2 = subprocess.Popen(
+                    process2 = subprocess.Popen(  # nosec B603
                         cmd_retry,
+                        shell=False,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         **kwargs,
@@ -268,7 +270,7 @@ class DependencyInstaller:
                         QgsMessageLog.logMessage(
                             f"pip install retry also failed: {stderr2_text}",
                             PLUGIN_NAME,
-                            Qgis.Critical,
+                            Qgis.MessageLevel.Critical,
                         )
                         QMessageBox.warning(
                             None,
@@ -283,12 +285,12 @@ class DependencyInstaller:
             except subprocess.TimeoutExpired:
                 process.kill()
                 QgsMessageLog.logMessage(
-                    "Installation timeout", PLUGIN_NAME, Qgis.Critical
+                    "Installation timeout", PLUGIN_NAME, Qgis.MessageLevel.Critical
                 )
                 return False
             except FileNotFoundError as e:
                 QgsMessageLog.logMessage(
-                    f"Python executable not found: {str(e)}", PLUGIN_NAME, Qgis.Critical
+                    f"Python executable not found: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
                 )
                 QMessageBox.warning(
                     None,
@@ -300,7 +302,7 @@ class DependencyInstaller:
                 return False
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Installation error: {str(e)}", PLUGIN_NAME, Qgis.Critical
+                    f"Installation error: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
                 )
                 return False
 
@@ -309,7 +311,7 @@ class DependencyInstaller:
                 QgsMessageLog.logMessage(
                     f"Dependencies still missing: {', '.join(missing_after)}",
                     PLUGIN_NAME,
-                    Qgis.Critical,
+                    Qgis.MessageLevel.Critical,
                 )
                 QMessageBox.warning(
                     None,
@@ -332,6 +334,6 @@ class DependencyInstaller:
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Installation error: {str(e)}", PLUGIN_NAME, Qgis.Critical
+                f"Installation error: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
             )
             return False

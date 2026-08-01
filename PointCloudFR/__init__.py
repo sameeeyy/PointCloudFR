@@ -53,13 +53,13 @@ class LidarPlugin:
                 QCoreApplication.installTranslator(self.translator)
 
         QgsMessageLog.logMessage(
-            f"{PLUGIN_NAME} plugin initialized", PLUGIN_NAME, Qgis.Info
+            f"{PLUGIN_NAME} plugin initialized", PLUGIN_NAME, Qgis.MessageLevel.Info
         )
 
     def initGui(self):
         """Initialize plugin GUI."""
         QgsMessageLog.logMessage(
-            f"Initializing {PLUGIN_NAME} GUI", PLUGIN_NAME, Qgis.Info
+            f"Initializing {PLUGIN_NAME} GUI", PLUGIN_NAME, Qgis.MessageLevel.Info
         )
         try:
             from .lidar_provider import LidarProcessingProvider
@@ -69,26 +69,26 @@ class LidarPlugin:
                 QgsApplication.processingRegistry().addProvider(self.provider)
                 self.provider.refreshAlgorithms()
                 QgsMessageLog.logMessage(
-                    "Provider added successfully", PLUGIN_NAME, Qgis.Info
+                    "Provider added successfully", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding provider: {str(e)}", PLUGIN_NAME, Qgis.Critical
+                f"Error adding provider: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
             )
             show_error_message(f"Error initializing plugin GUI: {str(e)}")
 
     def unload(self):
         """Unload the plugin."""
         QgsMessageLog.logMessage(
-            f"Unloading {PLUGIN_NAME} plugin", PLUGIN_NAME, Qgis.Info
+            f"Unloading {PLUGIN_NAME} plugin", PLUGIN_NAME, Qgis.MessageLevel.Info
         )
         try:
             if self.provider:
                 QgsApplication.processingRegistry().removeProvider(self.provider)
                 self.provider = None
                 QgsMessageLog.logMessage(
-                    "Provider removed successfully", PLUGIN_NAME, Qgis.Info
+                    "Provider removed successfully", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
 
             # Clear version setting but keep ever_installed flag
@@ -96,7 +96,7 @@ class LidarPlugin:
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error removing provider: {str(e)}", PLUGIN_NAME, Qgis.Critical
+                f"Error removing provider: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
             )
         finally:
             try:
@@ -107,7 +107,7 @@ class LidarPlugin:
                 QgsMessageLog.logMessage(
                     f"Error cleaning temporary files: {str(e)}",
                     PLUGIN_NAME,
-                    Qgis.Warning,
+                    Qgis.MessageLevel.Warning,
                 )
 
 
@@ -138,6 +138,6 @@ def classFactory(iface):
     except Exception as e:
         show_error_message(f"Error loading plugin: {str(e)}\n\nPlease check the QGIS log for details.")
         QgsMessageLog.logMessage(
-            f"Error loading plugin: {str(e)}", PLUGIN_NAME, Qgis.Critical
+            f"Error loading plugin: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
         )
         return None

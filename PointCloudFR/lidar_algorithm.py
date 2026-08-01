@@ -107,7 +107,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             QgsProcessingParameterFeatureSource(
                 self.INPUT,
                 self.tr("Input AOI layer"),
-                [QgsProcessing.TypeVectorAnyGeometry],
+                [QgsProcessing.SourceType.TypeVectorAnyGeometry],
             )
         )
         self.addParameter(
@@ -127,7 +127,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             QgsProcessingParameterNumber(
                 self.MAX_DOWNLOADS,
                 self.tr("Maximum concurrent downloads"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=QgsProcessingParameterNumber.Type.Integer,
                 defaultValue=4,
                 minValue=1,
                 maxValue=10,
