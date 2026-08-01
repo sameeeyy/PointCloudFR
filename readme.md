@@ -34,7 +34,7 @@ PointCloudFR is a robust QGIS plugin engineered to streamline the acquisition an
   - *Download All (No Merge)*: Retrieve raw tiles for custom pipelines via Python/PDAL.
   - *Merge All Intersecting*: Seamlessly combine multiple raster (TIF) tiles into a single seamless layer using GDAL.
   - *Use Most Coverage*: Automatically select the single tile with the maximum overlap.
-- **Automated Workflow** - Handles dependency installation behind the scenes and auto-loads datasets (both point clouds with proper classification renderers and continuous rasters) directly into your QGIS project.
+- **Automated Workflow** - Auto-loads datasets (both point clouds with proper classification renderers and continuous rasters) directly into your QGIS project.
 
 ## 🚀 Installation
 
