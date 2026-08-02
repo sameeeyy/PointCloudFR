@@ -288,7 +288,7 @@ class Downloader:
                     return False, ""
 
                 try:
-                    temp_file_path.rename(output_file)
+                    temp_file_path.replace(output_file)
                     self.logger.info(f"Successfully downloaded: {output_file}")
                     return True, str(output_file)
                 except Exception as e:

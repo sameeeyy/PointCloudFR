@@ -34,3 +34,4 @@ dist/*
 .DS_Store
 .ini
 PointCloudFR/dist/PointCloudFR-2.2.0.zip
+CHANGELOG.md
