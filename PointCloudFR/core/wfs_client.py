@@ -8,58 +8,59 @@ from qgis.core import (
     QgsProject,
 )
 
-def query_wfs_tiles(aoi_geometry: QgsGeometry, data_type_code: str, logger) -> List[dict]:
-    """Query WFS service with strict EPSG:2154 projection."""
+def query_wfs_tiles(aoi_geometry: QgsGeometry, data_type_code: str, logger, territory: dict) -> List[dict]:
+    """Query WFS service using the appropriate CRS for the detected territory."""
     try:
-        logger.info(f"Querying WFS for data type: {data_type_code}")
+        territory_srsname = territory["srsname"]
+        territory_urn = territory["urn"]
+
+        logger.info(f"Querying WFS for data type: {data_type_code} (CRS: {territory_srsname})")
 
         # URL du service WFS de la Géoplateforme IGN
         wfs_url = "https://data.geopf.fr/wfs/ows"
 
-        # 1. Force transformation of input geometry to Lambert-93 (EPSG:2154)
-        # This ensures our BBOX matches the native server projection
-        aoi_l93 = aoi_geometry
+        # 1. Force transformation of input geometry to the territory's native CRS
+        # This ensures our BBOX matches the expected server projection
+        aoi_native = aoi_geometry
         source_crs = (
             aoi_geometry.sourceCrs() if hasattr(aoi_geometry, "sourceCrs") else None
         )
 
-        # If no CRS is defined, assume 2154, otherwise transform if different
-        target_crs = QgsCoordinateReferenceSystem("EPSG:2154")
+        target_crs = QgsCoordinateReferenceSystem(territory_srsname)
         if (
             source_crs
             and source_crs.isValid()
-            and source_crs.authid() != "EPSG:2154"
+            and source_crs.authid() != territory_srsname
         ):
             logger.info(
-                f"Reprojecting search area from {source_crs.authid()} to EPSG:2154"
+                f"Reprojecting search area from {source_crs.authid()} to {territory_srsname}"
             )
             transform = QgsCoordinateTransform(
                 source_crs,
                 target_crs,
                 QgsProject.instance(),
             )
-            aoi_l93 = QgsGeometry(aoi_geometry)
-            aoi_l93.transform(transform)
+            aoi_native = QgsGeometry(aoi_geometry)
+            aoi_native.transform(transform)
 
-        # 2. Get bounding box in EPSG:2154
-        bbox = aoi_l93.boundingBox()
+        # 2. Get bounding box in the territory's native CRS
+        bbox = aoi_native.boundingBox()
 
-        # 3. Construct parameters with explicit coordinate reference system
-        # The URN 'urn:ogc:def:crs:EPSG::2154' is crucial for WFS 2.0
+        # 3. Construct parameters with the territory's coordinate reference system
         params = {
             "SERVICE": "WFS",
             "VERSION": "2.0.0",
             "REQUEST": "GetFeature",
             "TYPENAME": data_type_code,
             "OUTPUTFORMAT": "application/json",
-            "SRSNAME": "EPSG:2154",  # Explicitly ask for response in Lambert-93
+            "SRSNAME": territory_srsname,
         }
 
         # BBOX format: minx,miny,maxx,maxy,CRS_URN
         params["BBOX"] = (
             f"{bbox.xMinimum()},{bbox.yMinimum()},"
             f"{bbox.xMaximum()},{bbox.yMaximum()},"
-            "urn:ogc:def:crs:EPSG::2154"
+            f"{territory_urn}"
         )
 
         logger.info(f"WFS Query URL: {wfs_url}")

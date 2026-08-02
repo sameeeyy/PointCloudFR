@@ -22,6 +22,7 @@ from .core.wfs_client import query_wfs_tiles
 from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
 from .utils.logger import LidarLogger
+from .utils.territory import detect_territory
 
 
 class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
@@ -227,19 +228,23 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             aoi_geometry = aoi_feature.geometry()
             source_crs = source.sourceCrs()
 
-            if source_crs.authid() != "EPSG:2154":
+            # Detect which French territory the AOI falls into
+            territory = detect_territory(aoi_geometry, source_crs, self.logger)
+            target_crs = QgsCoordinateReferenceSystem(territory["srsname"])
+
+            if source_crs.authid() != territory["srsname"]:
                 self.logger.info(
-                    f"Transforming geometry from {source_crs.authid()} to EPSG:2154"
+                    f"Transforming geometry from {source_crs.authid()} to {territory['srsname']}"
                 )
                 transform = QgsCoordinateTransform(
                     source_crs,
-                    QgsCoordinateReferenceSystem("EPSG:2154"),
+                    target_crs,
                     QgsProject.instance(),
                 )
                 aoi_geometry.transform(transform)
 
             self.logger.info("Querying WFS service for available tiles...")
-            wfs_tiles = query_wfs_tiles(aoi_geometry, data_type_code, self.logger)
+            wfs_tiles = query_wfs_tiles(aoi_geometry, data_type_code, self.logger, territory)
 
             if not wfs_tiles:
                 self.logger.info("No tiles found from WFS query")
