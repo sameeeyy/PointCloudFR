@@ -2,7 +2,6 @@
 name=PointCloudFR
 qgisMinimumVersion=3.34
 qgisMaximumVersion=4.99
-supportsQt6=yes
 description=Downloads LiDAR tiles from IGN that intersect with the input AOI
 about=Downloads LiDAR point cloud data and derived products (MNT,MNS,MNH) from IGN (French National Geographic Institute) based on an Area of Interest (AOI). Perfect for automated workflows in QGIS Model Builder.
 version=2.2.4
