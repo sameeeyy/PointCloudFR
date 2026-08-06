@@ -403,7 +403,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Critical error: {str(e)}")
+                error_msg = f"Critical error: {str(e)}"
+                if getattr(self.logger, "log_file", None):
+                    error_msg += f"\nDetailed log saved to: {self.logger.log_file}"
+                self.logger.error(error_msg)
             return {}
         finally:
             downloader.cleanup_temp_files()

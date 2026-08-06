@@ -36,8 +36,8 @@
   * Updated all QGIS enum references to fully qualified paths (`Qgis.MessageLevel.*`, `QgsProcessing.SourceType.*`, `QgsProcessingParameterNumber.Type.*`) for seamless compatibility with QGIS 3.40+ and Qt6/PyQt6 environments.
 * **Dependency Installer Fixes**: Resolved Python environment resolution issues when installing required runtime packages from QGIS.
 
-
 ### 📥 Installation
+
 1. Download the `PointCloudFR-2.2.4.zip` asset attached to this release.
 2. In QGIS, go to **Plugins** > **Manage and Install Plugins...** > **Install from ZIP**.
 3. Select the downloaded `.zip` file and click **Install Plugin**.
