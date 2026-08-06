@@ -1,8 +1,6 @@
 """Tests for WFS client module."""
-import json
-from unittest.mock import MagicMock, patch
 
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 class TestParseWfsFeatures:
@@ -35,7 +33,10 @@ class TestParseWfsFeatures:
         data = {
             "features": [
                 {"properties": {"name": "test"}, "geometry": None},  # No URL
-                {"properties": {"url": "http://x.com/f.tif", "name": "f.tif"}, "geometry": None},
+                {
+                    "properties": {"url": "http://x.com/f.tif", "name": "f.tif"},
+                    "geometry": None,
+                },
             ]
         }
         tiles = _parse_wfs_features(data)
@@ -48,7 +49,13 @@ class TestParseWfsFeatures:
 
         data = {
             "features": [
-                {"properties": {"url": "http://x.com/f.tif", "nom": "french_name.tif"}, "geometry": None},
+                {
+                    "properties": {
+                        "url": "http://x.com/f.tif",
+                        "nom": "french_name.tif",
+                    },
+                    "geometry": None,
+                },
             ]
         }
         tiles = _parse_wfs_features(data)
@@ -110,7 +117,10 @@ class TestQueryWfsTiles:
         # Page 1: full page (triggers next page)
         page1_features = [
             {
-                "properties": {"url": f"http://x.com/tile_{i}.tif", "name": f"tile_{i}.tif"},
+                "properties": {
+                    "url": f"http://x.com/tile_{i}.tif",
+                    "name": f"tile_{i}.tif",
+                },
                 "geometry": None,
             }
             for i in range(WFS_PAGE_SIZE)
@@ -118,7 +128,10 @@ class TestQueryWfsTiles:
         # Page 2: partial page (last page)
         page2_features = [
             {
-                "properties": {"url": "http://x.com/tile_last.tif", "name": "tile_last.tif"},
+                "properties": {
+                    "url": "http://x.com/tile_last.tif",
+                    "name": "tile_last.tif",
+                },
                 "geometry": None,
             }
         ]

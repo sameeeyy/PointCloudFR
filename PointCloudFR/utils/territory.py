@@ -11,7 +11,6 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsGeometry,
     QgsProject,
-    QgsPointXY,
 )
 
 # Territory definitions with their native CRS and bounding boxes in WGS84 (lon_min, lat_min, lon_max, lat_max)
@@ -70,7 +69,9 @@ def _point_in_bbox(lon: float, lat: float, bbox: tuple) -> bool:
     return lon_min <= lon <= lon_max and lat_min <= lat <= lat_max
 
 
-def detect_territory(aoi_geometry: QgsGeometry, source_crs: QgsCoordinateReferenceSystem, logger=None) -> dict:
+def detect_territory(
+    aoi_geometry: QgsGeometry, source_crs: QgsCoordinateReferenceSystem, logger=None
+) -> dict:
     """
     Detect which French territory an AOI geometry belongs to.
 

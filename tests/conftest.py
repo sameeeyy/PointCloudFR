@@ -1,13 +1,13 @@
 """Shared fixtures for PointCloudFR tests."""
+
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 
 import pytest
 
-
 # ─── Mock QGIS modules before any plugin import ──────────────────────────────
 # This allows tests to run without a QGIS installation.
+
 
 def _create_qgis_mocks():
     """Create mock QGIS modules for testing outside of QGIS."""
@@ -30,14 +30,18 @@ def _create_qgis_mocks():
 
 _qgis_mocks = _create_qgis_mocks()
 
+
 # Provide commonly used QGIS classes
 class MockQgsProcessingAlgorithm:
     def __init__(self, *args, **kwargs):
         pass
+
     def initAlgorithm(self, config=None):
         pass
+
     def processAlgorithm(self, parameters, context, feedback):
         pass
+
 
 sys.modules["qgis.core"].QgsProcessingAlgorithm = MockQgsProcessingAlgorithm
 QgsProcessingAlgorithm = MockQgsProcessingAlgorithm
@@ -49,6 +53,7 @@ QCoreApplication = sys.modules["qgis.PyQt.QtCore"].QCoreApplication
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_feedback():
@@ -66,6 +71,7 @@ def mock_feedback():
 def mock_logger(mock_feedback):
     """Create a LidarLogger with mocked feedback and file logging disabled."""
     from PointCloudFR.utils.logger import LidarLogger
+
     logger = LidarLogger(mock_feedback, log_to_file=False)
     return logger
 
@@ -81,25 +87,44 @@ def sample_tiles():
                 "type": "Polygon",
                 "coordinates": [[[0, 0], [1000, 0], [1000, 1000], [0, 1000], [0, 0]]],
             },
-            "properties": {"url": "https://example.com/tile_A.tif", "name": "tile_A.tif"},
+            "properties": {
+                "url": "https://example.com/tile_A.tif",
+                "name": "tile_A.tif",
+            },
         },
         {
             "url": "https://example.com/tile_B.tif",
             "name": "tile_B.tif",
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [[[1000, 0], [2000, 0], [2000, 1000], [1000, 1000], [1000, 0]]],
+                "coordinates": [
+                    [[1000, 0], [2000, 0], [2000, 1000], [1000, 1000], [1000, 0]]
+                ],
             },
-            "properties": {"url": "https://example.com/tile_B.tif", "name": "tile_B.tif"},
+            "properties": {
+                "url": "https://example.com/tile_B.tif",
+                "name": "tile_B.tif",
+            },
         },
         {
             "url": "https://example.com/tile_C.tif",
             "name": "tile_C.tif",
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [[[5000, 5000], [6000, 5000], [6000, 6000], [5000, 6000], [5000, 5000]]],
+                "coordinates": [
+                    [
+                        [5000, 5000],
+                        [6000, 5000],
+                        [6000, 6000],
+                        [5000, 6000],
+                        [5000, 5000],
+                    ]
+                ],
             },
-            "properties": {"url": "https://example.com/tile_C.tif", "name": "tile_C.tif"},
+            "properties": {
+                "url": "https://example.com/tile_C.tif",
+                "name": "tile_C.tif",
+            },
         },
     ]
 
@@ -118,7 +143,9 @@ def sample_wfs_response():
                 },
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [[[100, 200], [1100, 200], [1100, 1200], [100, 1200], [100, 200]]],
+                    "coordinates": [
+                        [[100, 200], [1100, 200], [1100, 1200], [100, 1200], [100, 200]]
+                    ],
                 },
             },
             {
@@ -129,7 +156,15 @@ def sample_wfs_response():
                 },
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [[[1100, 200], [2100, 200], [2100, 1200], [1100, 1200], [1100, 200]]],
+                    "coordinates": [
+                        [
+                            [1100, 200],
+                            [2100, 200],
+                            [2100, 1200],
+                            [1100, 1200],
+                            [1100, 200],
+                        ]
+                    ],
                 },
             },
         ],

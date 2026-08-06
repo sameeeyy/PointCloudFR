@@ -1,6 +1,6 @@
 """Tests for territory detection module."""
-from unittest.mock import MagicMock, patch
-import pytest
+
+from unittest.mock import MagicMock
 
 
 class TestTerritoryDetection:
@@ -114,12 +114,15 @@ class TestPointInBbox:
 
     def test_inside(self):
         from PointCloudFR.utils.territory import _point_in_bbox
+
         assert _point_in_bbox(2.0, 45.0, (-5.5, 41.0, 10.0, 51.5)) is True
 
     def test_outside(self):
         from PointCloudFR.utils.territory import _point_in_bbox
+
         assert _point_in_bbox(20.0, 45.0, (-5.5, 41.0, 10.0, 51.5)) is False
 
     def test_on_boundary(self):
         from PointCloudFR.utils.territory import _point_in_bbox
+
         assert _point_in_bbox(-5.5, 41.0, (-5.5, 41.0, 10.0, 51.5)) is True

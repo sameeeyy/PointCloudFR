@@ -251,7 +251,7 @@ class QgisSetup:
             ".vscode",
         )
         copytree(manifest.parent, sdist, ignore=ignore_list)
-        
+
         # Check for LICENSE in candidate locations and copy into sdist
         for lic_candidate in [
             path / "LICENSE",
@@ -269,7 +269,10 @@ class QgisSetup:
 
         print("packaging the binaries ... ", end="")
         make_archive(
-            bdist.with_suffix(""), format="zip", root_dir=sdist.parent, base_dir=folder_name
+            bdist.with_suffix(""),
+            format="zip",
+            root_dir=sdist.parent,
+            base_dir=folder_name,
         )
 
         if not keep_temp:  # clean-up build mess
@@ -447,7 +450,8 @@ class QgisSetup:
                 self.remove(self.FOLDER_NAME, args.profile)
 
             print(
-                f"linking {self.FOLDER_NAME} directory to QGIS {args.profile} profile ... ", end=""
+                f"linking {self.FOLDER_NAME} directory to QGIS {args.profile} profile ... ",
+                end="",
             )
 
             if target.exists(follow_symlinks=False):

@@ -1,7 +1,6 @@
 import importlib.metadata
 import importlib.util
 import locale
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -38,7 +37,9 @@ def check_package_version(package_name: str, required_version: str = None) -> bo
         return parse_version(installed_version) >= parse_version(required_version)
     except Exception as e:
         QgsMessageLog.logMessage(
-            f"Error checking {package_name}: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Warning
+            f"Error checking {package_name}: {str(e)}",
+            PLUGIN_NAME,
+            Qgis.MessageLevel.Warning,
         )
         return False
 
@@ -123,7 +124,9 @@ class DependencyInstaller:
         try:
             if not self.requirements_path.exists():
                 QgsMessageLog.logMessage(
-                    "requirements.txt not found", PLUGIN_NAME, Qgis.MessageLevel.Critical
+                    "requirements.txt not found",
+                    PLUGIN_NAME,
+                    Qgis.MessageLevel.Critical,
                 )
                 return None
 
@@ -165,7 +168,9 @@ class DependencyInstaller:
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error checking dependencies: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
+                f"Error checking dependencies: {str(e)}",
+                PLUGIN_NAME,
+                Qgis.MessageLevel.Critical,
             )
             return None
 
@@ -219,7 +224,9 @@ class DependencyInstaller:
             try:
                 cmd = self._get_pip_install_command()
                 QgsMessageLog.logMessage(
-                    f"Running pip command: {' '.join(cmd)}", PLUGIN_NAME, Qgis.MessageLevel.Info
+                    f"Running pip command: {' '.join(cmd)}",
+                    PLUGIN_NAME,
+                    Qgis.MessageLevel.Info,
                 )
 
                 # Use CREATE_NO_WINDOW on Windows to avoid flashing console
@@ -241,7 +248,9 @@ class DependencyInstaller:
 
                 if stdout_text:
                     QgsMessageLog.logMessage(
-                        f"pip stdout: {stdout_text}", PLUGIN_NAME, Qgis.MessageLevel.Info
+                        f"pip stdout: {stdout_text}",
+                        PLUGIN_NAME,
+                        Qgis.MessageLevel.Info,
                     )
 
                 if process.returncode != 0:
@@ -253,7 +262,9 @@ class DependencyInstaller:
 
                     # Retry without --user flag (some environments don't support it)
                     QgsMessageLog.logMessage(
-                        "Retrying without --user flag...", PLUGIN_NAME, Qgis.MessageLevel.Info
+                        "Retrying without --user flag...",
+                        PLUGIN_NAME,
+                        Qgis.MessageLevel.Info,
                     )
                     cmd_retry = [c for c in cmd if c != "--user"]
                     process2 = subprocess.Popen(  # nosec B603
@@ -290,7 +301,9 @@ class DependencyInstaller:
                 return False
             except FileNotFoundError as e:
                 QgsMessageLog.logMessage(
-                    f"Python executable not found: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
+                    f"Python executable not found: {str(e)}",
+                    PLUGIN_NAME,
+                    Qgis.MessageLevel.Critical,
                 )
                 QMessageBox.warning(
                     None,
@@ -302,7 +315,9 @@ class DependencyInstaller:
                 return False
             except Exception as e:
                 QgsMessageLog.logMessage(
-                    f"Installation error: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
+                    f"Installation error: {str(e)}",
+                    PLUGIN_NAME,
+                    Qgis.MessageLevel.Critical,
                 )
                 return False
 
