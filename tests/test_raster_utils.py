@@ -1,10 +1,9 @@
 """Tests for raster_utils module."""
+
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _mock_qgs_geometry_from_polygon(coords):
     """Create a mock that simulates QgsGeometry.fromPolygonXY behavior."""
@@ -21,7 +20,9 @@ def _mock_qgs_geometry_from_polygon(coords):
         other_bbox = other._bbox if hasattr(other, "_bbox") else None
         if other_bbox:
             o_min_x, o_min_y, o_max_x, o_max_y = other_bbox
-            return not (max_x < o_min_x or min_x > o_max_x or max_y < o_min_y or min_y > o_max_y)
+            return not (
+                max_x < o_min_x or min_x > o_max_x or max_y < o_min_y or min_y > o_max_y
+            )
         return True  # Default to True if we can't check
 
     def intersection(other):
@@ -49,12 +50,15 @@ def _mock_qgs_geometry_from_polygon(coords):
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
+
 class TestFilterIntersectingTiles:
     """Test tile intersection filtering."""
 
     @patch("PointCloudFR.core.raster_utils.QgsGeometry")
     @patch("PointCloudFR.core.raster_utils.QgsPointXY")
-    def test_filters_non_intersecting_tiles(self, MockPointXY, MockGeometry, mock_logger, sample_tiles):
+    def test_filters_non_intersecting_tiles(
+        self, MockPointXY, MockGeometry, mock_logger, sample_tiles
+    ):
         """Tile C (far away) should be filtered out."""
         from PointCloudFR.core.raster_utils import RasterUtils
 
@@ -62,7 +66,9 @@ class TestFilterIntersectingTiles:
         MockPointXY.side_effect = lambda x, y: (x, y)
 
         # AOI covers [0, 0] to [1500, 500]
-        aoi = _mock_qgs_geometry_from_polygon([(0, 0), (1500, 0), (1500, 500), (0, 500)])
+        aoi = _mock_qgs_geometry_from_polygon(
+            [(0, 0), (1500, 0), (1500, 500), (0, 500)]
+        )
 
         # Make fromPolygonXY return mock geometries based on coordinates
         def mock_from_polygon(rings):
@@ -112,7 +118,9 @@ class TestSelectBestTiles:
 
     @patch("PointCloudFR.core.raster_utils.QgsGeometry")
     @patch("PointCloudFR.core.raster_utils.QgsPointXY")
-    def test_strategy_most_coverage(self, MockPointXY, MockGeometry, mock_logger, sample_tiles):
+    def test_strategy_most_coverage(
+        self, MockPointXY, MockGeometry, mock_logger, sample_tiles
+    ):
         """Strategy 2 should return only the tile with the most coverage."""
         from PointCloudFR.core.raster_utils import RasterUtils
 
@@ -138,7 +146,14 @@ class TestSelectBestTiles:
         from PointCloudFR.core.raster_utils import RasterUtils
 
         utils = RasterUtils(mock_logger)
-        single = [{"name": "only_tile", "geometry": None, "url": "http://x.com", "properties": {}}]
+        single = [
+            {
+                "name": "only_tile",
+                "geometry": None,
+                "url": "http://x.com",
+                "properties": {},
+            }
+        ]
         result = utils.select_best_tiles(single, MagicMock(), strategy=2)
         assert len(result) == 1
 

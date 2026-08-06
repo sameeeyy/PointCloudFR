@@ -1,5 +1,6 @@
 import configparser
 from pathlib import Path
+
 from qgis.core import QgsSettings
 
 PLUGIN_NAME = "PointCloudFR"
@@ -18,9 +19,9 @@ DATA_TYPE_OPTIONS = [
 ]
 
 DATA_TYPE_CODES = {
-    0: "IGNF_MNT-LIDAR-HD:dalle",   # MNT
-    1: "IGNF_MNS-LIDAR-HD:dalle",   # MNS
-    2: "IGNF_MNH-LIDAR-HD:dalle",   # MNH
+    0: "IGNF_MNT-LIDAR-HD:dalle",  # MNT
+    1: "IGNF_MNS-LIDAR-HD:dalle",  # MNS
+    2: "IGNF_MNH-LIDAR-HD:dalle",  # MNH
     3: "IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle",  # LIDAR
 }
 

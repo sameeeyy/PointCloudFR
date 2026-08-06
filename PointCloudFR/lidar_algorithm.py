@@ -19,15 +19,15 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-from .core.wfs_client import query_wfs_tiles
 from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
+from .core.wfs_client import query_wfs_tiles
 from .utils.config import (
-    DATA_TYPE_OPTIONS,
     DATA_TYPE_CODES,
-    STRATEGY_OPTIONS,
-    MIN_DISK_SPACE_MB,
+    DATA_TYPE_OPTIONS,
     MAX_TILES_RECOMMENDED,
+    MIN_DISK_SPACE_MB,
+    STRATEGY_OPTIONS,
 )
 from .utils.logger import LidarLogger
 from .utils.territory import detect_territory
@@ -236,7 +236,11 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             # --- Collect all geometries from input layer ---
             source_crs = source.sourceCrs()
             territory = detect_territory(
-                list(source.getFeatures())[0].geometry() if source.featureCount() > 0 else QgsGeometry(),
+                (
+                    list(source.getFeatures())[0].geometry()
+                    if source.featureCount() > 0
+                    else QgsGeometry()
+                ),
                 source_crs,
                 self.logger,
             )
@@ -317,9 +321,11 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
                 for future in concurrent.futures.as_completed(futures):
                     url_id = futures[future]
-                    
+
                     if self.feedback.isCanceled():
-                        self.logger.info("Cancellation requested — stopping downloads...")
+                        self.logger.info(
+                            "Cancellation requested — stopping downloads..."
+                        )
                         for f in futures:
                             if not f.done():
                                 f.cancel()
@@ -342,9 +348,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 self.logger.error("No files were successfully downloaded.")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
-            self.logger.info(
-                f"Downloaded {len(downloaded_files)}/{total_files} files"
-            )
+            self.logger.info(f"Downloaded {len(downloaded_files)}/{total_files} files")
 
             final_output = downloaded_files[0] if downloaded_files else ""
             output_files_str = ";".join(downloaded_files)
@@ -354,7 +358,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 if data_type != 3:
                     self.logger.info("Merging rasters...")
                     merged_file = raster_utils.merge_rasters_gdal(
-                        downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.tif"
+                        downloaded_files,
+                        output_folder,
+                        f"merged_{data_type_code.split(':')[1]}.tif",
                     )
                     if merged_file:
                         final_output = merged_file
@@ -369,7 +375,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 else:
                     self.logger.info("Merging point clouds...")
                     merged_file = raster_utils.merge_point_clouds(
-                        downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.laz"
+                        downloaded_files,
+                        output_folder,
+                        f"merged_{data_type_code.split(':')[1]}.laz",
                     )
                     if merged_file:
                         final_output = merged_file

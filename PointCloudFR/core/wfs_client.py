@@ -1,9 +1,10 @@
 import os
-import requests
 from typing import List
+
+import requests
 from qgis.core import QgsGeometry
 
-from ..utils.config import WFS_URL, WFS_PAGE_SIZE
+from ..utils.config import WFS_PAGE_SIZE, WFS_URL
 
 
 def _parse_wfs_features(geojson_data: dict) -> List[dict]:
@@ -16,12 +17,14 @@ def _parse_wfs_features(geojson_data: dict) -> List[dict]:
         url = properties.get("url")
         name = properties.get("name", properties.get("nom"))
         if url and name:
-            tiles.append({
-                "url": url,
-                "name": name,
-                "geometry": feature.get("geometry"),
-                "properties": properties,
-            })
+            tiles.append(
+                {
+                    "url": url,
+                    "name": name,
+                    "geometry": feature.get("geometry"),
+                    "properties": properties,
+                }
+            )
     return tiles
 
 
