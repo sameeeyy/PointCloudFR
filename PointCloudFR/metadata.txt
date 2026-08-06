@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 qgisMaximumVersion=4.99
 description=Downloads LiDAR tiles from IGN that intersect with the input AOI
 about=Downloads LiDAR point cloud data and derived products (MNT,MNS,MNH) from IGN (French National Geographic Institute) based on an Area of Interest (AOI). Perfect for automated workflows in QGIS Model Builder.
-version=2.2.4
+version=2.3.0
 author=Samy KHELIL
 email=k2samy@hotmail.fr
 
@@ -24,7 +24,8 @@ deprecated=False
 plugin_dependencies=processing
 translations=fr
 
-changelog= 2.2.4 - Added automatic French territory detection and multi-CRS support for French DOM-TOM regions (Guadeloupe, Martinique, Guyane, Réunion, Mayotte), refactored LiDAR merge strategy to core utilities, removed legacy dependency installer scripts, added cross-platform installation scripts (install.py/install.sh), resolved QGIS runtime dependency installer issues, and implemented a new loading download bar for smooth progress tracking.
+changelog= 2.3.0 - Added full multi-feature suppor. Fixed critical QGIS UI crashes by removing thread-unsafe operations. Simplified logs. 
+    2.2.4 - Added automatic French territory detection and multi-CRS support for French DOM-TOM regions (Guadeloupe, Martinique, Guyane, Réunion, Mayotte), refactored LiDAR merge strategy to core utilities, removed legacy dependency installer scripts, added cross-platform installation scripts (install.py/install.sh), resolved QGIS runtime dependency installer issues, and implemented a new loading download bar for smooth progress tracking.
     2.2.3 - Fixed urllib3 Retry compatibility for older QGIS versions (Thanks to Jonathan Boussard @Bjonat).
     2.2.0 - Disabled SSL Verification for enterprise network compatibility, Added QGIS 4 version compatibility.
     2.1.0 - Géoplateforme Production Compliance - Updated WFS layer codes to match the final IGN naming conventions (e.g., IGNF_NUAGES-DE-POINTS-LIDAR-HD) and enforced strict EPSG:2154 (Lambert-93) projection in queries to resolve HTTP 400 errors.

@@ -10,22 +10,20 @@ from qgis.core import (
     QgsRasterLayer,
 )
 
+from ..utils.config import STRATEGY_OPTIONS
+
+
 class RasterUtils:
     """Utilities for handling raster and point cloud data in QGIS."""
 
     def __init__(self, logger):
         self.logger = logger
-        self.STRATEGY_OPTIONS = [
-            "Download All (No Merge)",
-            "Merge All Intersecting",
-            "Use Most Coverage",
-        ]
 
     def load_point_cloud_layer(self, file_path: str) -> bool:
         """Load a point cloud layer into QGIS project with classified renderer."""
         try:
             layer_name = Path(file_path).stem
-            self.logger.info(f"Loading point cloud layer: {layer_name}")
+            self.logger.debug(f"Loading point cloud layer: {layer_name}")
 
             options = QgsPointCloudLayer.LayerOptions()
             options.skipIndexGeneration = True
@@ -41,7 +39,7 @@ class RasterUtils:
             layer.setRenderer(renderer)
 
             QgsProject.instance().addMapLayer(layer)
-            self.logger.info(f"Successfully loaded point cloud layer: {layer_name}")
+            self.logger.debug(f"Loaded point cloud layer: {layer_name}")
             return True
         except Exception as e:
             self.logger.error(f"Error loading point cloud layer: {str(e)}")
@@ -51,7 +49,7 @@ class RasterUtils:
         """Load a raster layer into QGIS project with appropriate styling."""
         try:
             layer_name = Path(file_path).stem
-            self.logger.info(f"Loading raster layer: {layer_name}")
+            self.logger.debug(f"Loading raster layer: {layer_name}")
 
             layer = QgsRasterLayer(file_path, layer_name)
             if not layer.isValid():
@@ -59,7 +57,7 @@ class RasterUtils:
                 return False
 
             QgsProject.instance().addMapLayer(layer)
-            self.logger.info(f"Successfully loaded raster layer: {layer_name}")
+            self.logger.debug(f"Loaded raster layer: {layer_name}")
             return True
         except Exception as e:
             self.logger.error(f"Error loading raster layer: {str(e)}")
@@ -86,8 +84,8 @@ class RasterUtils:
             gdal.Warp(str(output_path), raster_files, options=options)
 
             if output_path.exists():
-                self.logger.info(
-                    f"Successfully merged {len(raster_files)} raster files to: {output_path}"
+                self.logger.debug(
+                    f"Merged {len(raster_files)} raster files to: {output_path}"
                 )
                 return str(output_path)
             else:
@@ -120,8 +118,8 @@ class RasterUtils:
             processing.run("pdal:merge", params)
             
             if output_path.exists():
-                self.logger.info(
-                    f"Successfully merged {len(pc_files)} point cloud files to: {output_path}"
+                self.logger.debug(
+                    f"Merged {len(pc_files)} point cloud files to: {output_path}"
                 )
                 return str(output_path)
             else:
@@ -156,10 +154,10 @@ class RasterUtils:
                         if tile_geom.intersects(aoi_geometry):
                             intersecting_tiles.append(tile)
                     except Exception as e:
-                        self.logger.warning(f"Error processing tile geometry: {e}")
+                        self.logger.debug(f"Error processing tile geometry: {e}")
                         intersecting_tiles.append(tile)
 
-            self.logger.info(
+            self.logger.debug(
                 f"Filtered to {len(intersecting_tiles)} intersecting tiles"
             )
             return intersecting_tiles
@@ -176,12 +174,11 @@ class RasterUtils:
             return []
 
         if len(tiles) == 1:
-            self.logger.info("Single tile found - no selection needed")
             return tiles
 
         if strategy in (0, 1):  # Download All or Merge All
-            self.logger.info(
-                f"Using all {len(tiles)} tiles (strategy: {self.STRATEGY_OPTIONS[strategy]})"
+            self.logger.debug(
+                f"Using all {len(tiles)} tiles (strategy: {STRATEGY_OPTIONS[strategy]})"
             )
             return tiles
 
@@ -211,18 +208,15 @@ class RasterUtils:
                         if area > max_area:
                             max_area = area
                             best_tile = tile
-                            self.logger.info(
-                                f"New best tile found: {tile['name']} - intersection area: {area:.2f}"
-                            )
                     except Exception as e:
-                        self.logger.warning(f"Error processing tile for coverage: {e}")
+                        self.logger.debug(f"Error processing tile for coverage: {e}")
 
             if best_tile:
-                self.logger.info(f"Selected best tile: {best_tile['name']}")
+                self.logger.debug(f"Selected best tile: {best_tile['name']}")
                 return [best_tile]
 
             self.logger.warning(
-                "No valid intersection found - falling back to first tile"
+                "No valid intersection found — falling back to first tile"
             )
             return tiles[:1]
 

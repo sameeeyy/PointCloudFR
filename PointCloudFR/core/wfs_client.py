@@ -1,127 +1,115 @@
 import os
 import requests
 from typing import List
-from qgis.core import (
-    QgsGeometry,
-    QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
-    QgsProject,
-)
+from qgis.core import QgsGeometry
 
-def query_wfs_tiles(aoi_geometry: QgsGeometry, data_type_code: str, logger, territory: dict) -> List[dict]:
-    """Query WFS service using the appropriate CRS for the detected territory."""
+from ..utils.config import WFS_URL, WFS_PAGE_SIZE
+
+
+def _parse_wfs_features(geojson_data: dict) -> List[dict]:
+    """Parse WFS GeoJSON response into tile dicts."""
+    tiles = []
+    for feature in geojson_data.get("features", []):
+        if "properties" not in feature:
+            continue
+        properties = feature["properties"]
+        url = properties.get("url")
+        name = properties.get("name", properties.get("nom"))
+        if url and name:
+            tiles.append({
+                "url": url,
+                "name": name,
+                "geometry": feature.get("geometry"),
+                "properties": properties,
+            })
+    return tiles
+
+
+def query_wfs_tiles(
+    aoi_geometry: QgsGeometry,
+    data_type_code: str,
+    logger,
+    territory: dict,
+) -> List[dict]:
+    """Query WFS service with pagination using the appropriate CRS for the detected territory.
+
+    The aoi_geometry must already be projected into the territory's native CRS
+    before calling this function.
+    """
     try:
         territory_srsname = territory["srsname"]
         territory_urn = territory["urn"]
 
-        logger.info(f"Querying WFS for data type: {data_type_code} (CRS: {territory_srsname})")
+        logger.debug(f"WFS query — type: {data_type_code}, CRS: {territory_srsname}")
 
-        # URL du service WFS de la Géoplateforme IGN
-        wfs_url = "https://data.geopf.fr/wfs/ows"
-
-        # 1. Force transformation of input geometry to the territory's native CRS
-        # This ensures our BBOX matches the expected server projection
-        aoi_native = aoi_geometry
-        source_crs = (
-            aoi_geometry.sourceCrs() if hasattr(aoi_geometry, "sourceCrs") else None
-        )
-
-        target_crs = QgsCoordinateReferenceSystem(territory_srsname)
-        if (
-            source_crs
-            and source_crs.isValid()
-            and source_crs.authid() != territory_srsname
-        ):
-            logger.info(
-                f"Reprojecting search area from {source_crs.authid()} to {territory_srsname}"
-            )
-            transform = QgsCoordinateTransform(
-                source_crs,
-                target_crs,
-                QgsProject.instance(),
-            )
-            aoi_native = QgsGeometry(aoi_geometry)
-            aoi_native.transform(transform)
-
-        # 2. Get bounding box in the territory's native CRS
-        bbox = aoi_native.boundingBox()
-
-        # 3. Construct parameters with the territory's coordinate reference system
-        params = {
-            "SERVICE": "WFS",
-            "VERSION": "2.0.0",
-            "REQUEST": "GetFeature",
-            "TYPENAME": data_type_code,
-            "OUTPUTFORMAT": "application/json",
-            "SRSNAME": territory_srsname,
-        }
-
-        # BBOX format: minx,miny,maxx,maxy,CRS_URN
-        params["BBOX"] = (
+        bbox = aoi_geometry.boundingBox()
+        bbox_str = (
             f"{bbox.xMinimum()},{bbox.yMinimum()},"
             f"{bbox.xMaximum()},{bbox.yMaximum()},"
             f"{territory_urn}"
         )
+        logger.debug(f"BBOX: {bbox_str}")
 
-        logger.info(f"WFS Query URL: {wfs_url}")
-        logger.info(f"BBOX: {params['BBOX']}")
+        verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
 
-        try:
-            # Determine SSL verification from environment (defaults to not verifying to support corporate VPNs)
-            verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
-            response = requests.get(
-                wfs_url, params=params, timeout=30, verify=verify_ssl
-            )
-            response.raise_for_status()
+        # Paginated WFS query (server default limit is 5000)
+        all_tiles = []
+        start_index = 0
 
-            # Parse GeoJSON response
-            geojson_data = response.json()
-            if "features" not in geojson_data:
-                logger.warning(
-                    "WFS returned valid response but 0 features found."
+        while True:
+            params = {
+                "SERVICE": "WFS",
+                "VERSION": "2.0.0",
+                "REQUEST": "GetFeature",
+                "TYPENAME": data_type_code,
+                "OUTPUTFORMAT": "application/json",
+                "SRSNAME": territory_srsname,
+                "BBOX": bbox_str,
+                "COUNT": WFS_PAGE_SIZE,
+                "STARTINDEX": start_index,
+            }
+
+            try:
+                response = requests.get(
+                    WFS_URL, params=params, timeout=30, verify=verify_ssl
                 )
-                return []
+                response.raise_for_status()
 
-            tiles = []
-            for feature in geojson_data["features"]:
-                if "properties" in feature:
-                    properties = feature["properties"]
-                    # The new platform uses 'url' and 'nom' or 'name'
-                    # We check both just in case
-                    url = properties.get("url")
-                    name = properties.get("name", properties.get("nom"))
+                geojson_data = response.json()
+                page_tiles = _parse_wfs_features(geojson_data)
+                all_tiles.extend(page_tiles)
 
-                    if url and name:
-                        tiles.append(
-                            {
-                                "url": url,
-                                "name": name,
-                                "geometry": feature.get("geometry"),
-                                "properties": properties,
-                            }
-                        )
-
-            logger.info(f"Found {len(tiles)} tiles intersecting the envelope")
-            return tiles
-
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 400:
-                logger.error(
-                    f"WFS 400 Error. The server rejected the request. "
-                    f"Check if layer '{data_type_code}' exists."
+                logger.debug(
+                    f"WFS page {start_index // WFS_PAGE_SIZE + 1}: "
+                    f"{len(page_tiles)} features (total: {len(all_tiles)})"
                 )
-            else:
-                logger.error(f"HTTP Error during WFS request: {str(e)}")
-            return []
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Connection error during WFS request: {str(e)}")
-            return []
-        except (ValueError, KeyError) as e:
-            logger.error(f"Error parsing WFS response: {str(e)}")
-            if "response" in locals():
-                logger.error(f"Response snippet: {response.text[:200]}")
-            return []
+                # Stop if we got fewer results than the page size (last page)
+                if len(page_tiles) < WFS_PAGE_SIZE:
+                    break
+
+                start_index += WFS_PAGE_SIZE
+
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 400:
+                    logger.error(
+                        f"WFS 400 Error. The server rejected the request. "
+                        f"Check if layer '{data_type_code}' exists."
+                    )
+                else:
+                    logger.error(f"HTTP Error during WFS request: {str(e)}")
+                return all_tiles  # Return what we have so far
+
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Connection error during WFS request: {str(e)}")
+                return all_tiles
+
+            except (ValueError, KeyError) as e:
+                logger.error(f"Error parsing WFS response: {str(e)}")
+                return all_tiles
+
+        logger.debug(f"WFS total: {len(all_tiles)} tiles found")
+        return all_tiles
 
     except Exception as e:
         logger.error(f"Critical error querying WFS: {str(e)}")

@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.3.0] - 2026-08-07
+
+## 🚀 Highlights & New Features
+
+* **WFS Pagination**: Bypassed the IGN's 5000 feature limit by implementing robust WFS pagination (`COUNT=1000` & `STARTINDEX`).
+* **Multi-Feature Support**: Full support for processing multiple polygons within a single layer, intelligently querying WFS for each geometry and deduplicating overlapping tiles.
+* **Automated Testing & CI**: Implemented a comprehensive test suite (47 tests) using `pytest` with QGIS mocking, and integrated it into GitHub Actions CI.
+
+---
+
+## 🛠️ Security & Stability Improvements
+
+* **Thread Safety**: Fixed critical QGIS UI crashes by removing `QCoreApplication.processEvents()` from the background download thread.
+* **Model Builder Resilience**: Improved output folder creation logic to prevent OS Errors when running iteratively in the QGIS Graphical Modeler.
+* **Cleaner Logging**: Introduced log rotation (keeping only the last 10 log files) and separated verbose debug info from the main QGIS user feedback panel.
+
 ## [2.2.4] - 2026-08-02
 
 ## 🚀 Highlights & New Features

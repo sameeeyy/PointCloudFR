@@ -10,7 +10,6 @@ from typing import Tuple
 
 import requests
 import urllib3
-from qgis.PyQt.QtCore import QCoreApplication
 from requests.adapters import HTTPAdapter, Retry
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -254,10 +253,7 @@ class Downloader:
             if self.feedback and self.feedback.isCanceled():
                 return False, ""
 
-            estimated_size = 100 * 1024 * 1024
-            required_space_mb = (estimated_size / (1024 * 1024)) + 100
-            if not self.check_disk_space(output_path, required_space_mb):
-                return False, ""
+
 
             verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
             
@@ -279,7 +275,7 @@ class Downloader:
                                 downloaded_bytes += len(data)
                                 if progress_tracker:
                                     progress_tracker.update_file_progress(file_id, downloaded_bytes, total_bytes)
-                            QCoreApplication.processEvents()
+
 
                 if self.feedback and self.feedback.isCanceled():
                     return False, ""
@@ -289,7 +285,7 @@ class Downloader:
 
                 try:
                     temp_file_path.replace(output_file)
-                    self.logger.info(f"Successfully downloaded: {output_file}")
+                    self.logger.debug(f"Successfully downloaded: {output_file}")
                     return True, str(output_file)
                 except Exception as e:
                     self.logger.error(

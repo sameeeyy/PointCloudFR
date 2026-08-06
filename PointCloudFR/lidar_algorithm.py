@@ -4,6 +4,7 @@ from pathlib import Path
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
+    QgsGeometry,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingOutputFile,
@@ -21,6 +22,13 @@ from qgis.PyQt.QtCore import QCoreApplication
 from .core.wfs_client import query_wfs_tiles
 from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
+from .utils.config import (
+    DATA_TYPE_OPTIONS,
+    DATA_TYPE_CODES,
+    STRATEGY_OPTIONS,
+    MIN_DISK_SPACE_MB,
+    MAX_TILES_RECOMMENDED,
+)
 from .utils.logger import LidarLogger
 from .utils.territory import detect_territory
 
@@ -36,31 +44,6 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     FORCE_DOWNLOAD = "FORCE_DOWNLOAD"
     MERGE_STRATEGY = "MERGE_STRATEGY"
     LOAD_LAYER = "LOAD_LAYER"
-
-    MIN_DISK_SPACE_MB = 1024  # 1GB minimum free space
-    MAX_TILES_RECOMMENDED = 50  # Recommended maximum tiles per download
-
-    # Options for data types
-    DATA_TYPE_OPTIONS = [
-        "MNT (Digital Terrain Model)",
-        "MNS (Digital Surface Model)",
-        "MNH (Digital Height Model)",
-        "LIDAR (Point Cloud)",
-    ]
-
-    # Mapping to WFS codes
-    DATA_TYPE_CODES = {
-        0: "IGNF_MNT-LIDAR-HD:dalle",  # MNT
-        1: "IGNF_MNS-LIDAR-HD:dalle",  # MNS
-        2: "IGNF_MNH-LIDAR-HD:dalle",  # MNH
-        3: "IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle",  # LIDAR
-    }
-
-    STRATEGY_OPTIONS = [
-        "Download All (No Merge)",
-        "Merge All Intersecting",
-        "Use Most Coverage",
-    ]
 
     def __init__(self):
         super().__init__()
@@ -115,7 +98,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             QgsProcessingParameterEnum(
                 self.DATA_TYPE,
                 self.tr("Type de données à télécharger"),
-                options=self.DATA_TYPE_OPTIONS,
+                options=DATA_TYPE_OPTIONS,
                 defaultValue=0,
             )
         )
@@ -139,7 +122,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             QgsProcessingParameterEnum(
                 self.MERGE_STRATEGY,
                 self.tr("Strategy for multiple tiles"),
-                options=self.STRATEGY_OPTIONS,
+                options=STRATEGY_OPTIONS,
                 defaultValue=0,
             )
         )
@@ -170,6 +153,36 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             )
         )
 
+    def _collect_geometries(self, source, transform=None):
+        """Collect and optionally reproject all valid geometries from the source layer."""
+        geometries = []
+        for feature in source.getFeatures():
+            geom = feature.geometry()
+            if geom and not geom.isEmpty():
+                geom_copy = QgsGeometry(geom)
+                if transform:
+                    geom_copy.transform(transform)
+                geometries.append(geom_copy)
+        return geometries
+
+    def _query_tiles_for_geometries(self, geometries, data_type_code, territory):
+        """Query WFS for each geometry individually and deduplicate tiles by name."""
+        all_tiles = {}  # key = tile name → deduplicates automatically
+        total = len(geometries)
+
+        for i, geom in enumerate(geometries):
+            if self.feedback.isCanceled():
+                break
+
+            if total > 1:
+                self.logger.info(f"Searching tiles for feature {i + 1}/{total}...")
+
+            tiles = query_wfs_tiles(geom, data_type_code, self.logger, territory)
+            for tile in tiles:
+                all_tiles[tile["name"]] = tile
+
+        return list(all_tiles.values())
+
     def processAlgorithm(self, parameters, context, feedback):
         """Main processing algorithm with WFS integration."""
         self.feedback = feedback
@@ -178,12 +191,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         downloader = Downloader(self.logger, feedback)
 
         try:
-            self.logger.info("Starting data download process...")
-
             source = self.parameterAsSource(parameters, self.INPUT, context)
-            output_folder = Path(
-                self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
-            )
             data_type = self.parameterAsEnum(parameters, self.DATA_TYPE, context)
             max_downloads = self.parameterAsInt(parameters, self.MAX_DOWNLOADS, context)
             force_download = self.parameterAsBool(
@@ -194,84 +202,102 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             )
             load_layer = self.parameterAsBool(parameters, self.LOAD_LAYER, context)
 
-            data_type_code = self.DATA_TYPE_CODES.get(data_type)
+            data_type_code = DATA_TYPE_CODES.get(data_type)
             if not data_type_code:
                 self.logger.error(f"Invalid data type: {data_type}")
                 return {}
 
-            if max_downloads < 1 or max_downloads > 10:
-                self.logger.error(f"Invalid max_downloads value: {max_downloads}")
-                return {}
+            data_type_label = DATA_TYPE_OPTIONS[data_type].split(" (")[0]
+            self.logger.info(f"Downloading {data_type_label} data...")
 
-            self.logger.info(f"Processing parameters:")
-            self.logger.info(f"- Data type: {self.DATA_TYPE_OPTIONS[data_type]}")
-            self.logger.info(f"- WFS code: {data_type_code}")
-            self.logger.info(f"- Output folder: {output_folder}")
-            self.logger.info(f"- Max concurrent downloads: {max_downloads}")
-            self.logger.info(f"- Force download: {force_download}")
-            self.logger.info(f"- Merge strategy: {self.STRATEGY_OPTIONS[merge_strategy]}")
-            self.logger.info(f"- Load layer after download: {load_layer}")
+            self.logger.debug(f"Data type code: {data_type_code}")
+            self.logger.debug(f"Max concurrent downloads: {max_downloads}")
+            self.logger.debug(f"Force download: {force_download}")
+            self.logger.debug(f"Merge strategy: {STRATEGY_OPTIONS[merge_strategy]}")
+
+            # --- Output folder setup ---
+            output_folder = Path(
+                self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
+            )
+            try:
+                output_folder.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                self.logger.error(f"Cannot create output folder '{output_folder}': {e}")
+                return {}
 
             downloads_dir = output_folder / "downloads"
-            downloads_dir.mkdir(parents=True, exist_ok=True)
-            self.logger.info(f"Created directory: {downloads_dir}")
+            downloads_dir.mkdir(exist_ok=True)
+            self.logger.debug(f"Output directory: {downloads_dir}")
 
-            if not downloader.check_disk_space(output_folder, self.MIN_DISK_SPACE_MB):
+            # --- Disk space check (once) ---
+            if not downloader.check_disk_space(output_folder, MIN_DISK_SPACE_MB):
                 return {}
 
-            features = list(source.getFeatures())
-            if not features:
-                self.logger.error("No features found in input layer")
-                return {}
-
-            aoi_feature = features[0]
-            aoi_geometry = aoi_feature.geometry()
+            # --- Collect all geometries from input layer ---
             source_crs = source.sourceCrs()
-
-            # Detect which French territory the AOI falls into
-            territory = detect_territory(aoi_geometry, source_crs, self.logger)
+            territory = detect_territory(
+                list(source.getFeatures())[0].geometry() if source.featureCount() > 0 else QgsGeometry(),
+                source_crs,
+                self.logger,
+            )
             target_crs = QgsCoordinateReferenceSystem(territory["srsname"])
 
+            transform = None
             if source_crs.authid() != territory["srsname"]:
-                self.logger.info(
-                    f"Transforming geometry from {source_crs.authid()} to {territory['srsname']}"
+                self.logger.debug(
+                    f"Reprojecting from {source_crs.authid()} to {territory['srsname']}"
                 )
                 transform = QgsCoordinateTransform(
-                    source_crs,
-                    target_crs,
-                    QgsProject.instance(),
+                    source_crs, target_crs, QgsProject.instance()
                 )
-                aoi_geometry.transform(transform)
 
-            self.logger.info("Querying WFS service for available tiles...")
-            wfs_tiles = query_wfs_tiles(aoi_geometry, data_type_code, self.logger, territory)
+            geometries = self._collect_geometries(source, transform)
+            if not geometries:
+                self.logger.error("No valid geometries found in input layer")
+                return {}
+
+            self.logger.debug(f"Processing {len(geometries)} feature(s)")
+
+            # --- Query WFS for each feature, deduplicate ---
+            self.logger.info("Searching for tiles...")
+            wfs_tiles = self._query_tiles_for_geometries(
+                geometries, data_type_code, territory
+            )
 
             if not wfs_tiles:
-                self.logger.info("No tiles found from WFS query")
+                self.logger.info("No tiles found for this area")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
+            # --- Filter tiles that actually intersect the AOI ---
+            combined_aoi = geometries[0]
+            for g in geometries[1:]:
+                combined_aoi = combined_aoi.combine(g)
+
             intersecting_tiles = raster_utils.filter_intersecting_tiles(
-                wfs_tiles, aoi_geometry
+                wfs_tiles, combined_aoi
             )
             if not intersecting_tiles:
                 self.logger.info("No tiles intersect with AOI")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
-            if len(intersecting_tiles) > self.MAX_TILES_RECOMMENDED:
+            self.logger.info(f"Found {len(intersecting_tiles)} tiles")
+
+            if len(intersecting_tiles) > MAX_TILES_RECOMMENDED:
                 self.logger.warning(
-                    f"Found {len(intersecting_tiles)} tiles, exceeding the recommended limit of {self.MAX_TILES_RECOMMENDED}. "
-                    f"Large tile counts may impact performance. Consider splitting your AOI into smaller chunks."
+                    f"Large download: {len(intersecting_tiles)} tiles. "
+                    f"Consider splitting your AOI into smaller areas."
                 )
 
             selected_tiles = raster_utils.select_best_tiles(
-                intersecting_tiles, aoi_geometry, merge_strategy
+                intersecting_tiles, combined_aoi, merge_strategy
             )
 
+            # --- Download ---
             progress_tracker = DownloadProgressTracker(feedback)
             progress_tracker.set_total_files(len(selected_tiles))
 
             total_files = len(selected_tiles)
-            self.logger.info(f"Starting download of {total_files} tiles...")
+            self.logger.info(f"Downloading {total_files} tiles...")
 
             downloaded_files = []
             with concurrent.futures.ThreadPoolExecutor(
@@ -293,13 +319,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     url_id = futures[future]
                     
                     if self.feedback.isCanceled():
-                        self.logger.info("Cancellation requested - stopping all downloads...")
-                        cancelled_count = 0
+                        self.logger.info("Cancellation requested — stopping downloads...")
                         for f in futures:
                             if not f.done():
-                                if f.cancel():
-                                    cancelled_count += 1
-                        self.logger.info(f"Cancelled {cancelled_count} pending downloads")
+                                f.cancel()
                         executor.shutdown(wait=False)
                         break
 
@@ -309,27 +332,27 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                             downloaded_files.append(file_path)
                         progress_tracker.mark_file_completed(url_id)
                     except Exception as e:
-                        self.logger.error(f"Download thread error: {e}")
+                        self.logger.error(f"Download error: {e}")
                         progress_tracker.mark_file_completed(url_id)
 
             if self.feedback.isCanceled():
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
-            self.logger.info(
-                f"Download phase complete. Successfully acquired {len(downloaded_files)}/{total_files} files."
-            )
-
             if not downloaded_files:
                 self.logger.error("No files were successfully downloaded.")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
+            self.logger.info(
+                f"Downloaded {len(downloaded_files)}/{total_files} files"
+            )
+
             final_output = downloaded_files[0] if downloaded_files else ""
             output_files_str = ";".join(downloaded_files)
 
-            # Data processing
+            # --- Post-processing (merge / load) ---
             if merge_strategy == 1 and len(downloaded_files) > 1:
                 if data_type != 3:
-                    self.logger.info("Starting raster merge process...")
+                    self.logger.info("Merging rasters...")
                     merged_file = raster_utils.merge_rasters_gdal(
                         downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.tif"
                     )
@@ -339,12 +362,12 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                         if load_layer:
                             raster_utils.load_raster_layer(merged_file, data_type)
                     else:
-                        self.logger.warning("Raster merge failed, falling back to individual layers")
+                        self.logger.warning("Merge failed, loading individual layers")
                         if load_layer:
                             for f in downloaded_files:
                                 raster_utils.load_raster_layer(f, data_type)
                 else:
-                    self.logger.info("Starting point cloud merge process...")
+                    self.logger.info("Merging point clouds...")
                     merged_file = raster_utils.merge_point_clouds(
                         downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.laz"
                     )
@@ -353,15 +376,16 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                         output_files_str = merged_file
                         if load_layer:
                             self.logger.warning(
-                                "Note: Auto-loading is disabled for merged files. "
-                                "To visualize, manually drag and drop the file into QGIS."
+                                "Auto-loading is disabled for merged point cloud files. "
+                                "Drag and drop the file into QGIS to visualize."
                             )
                     else:
-                        self.logger.warning("Point cloud merge failed, falling back to individual layers")
+                        self.logger.warning("Merge failed, loading individual layers")
                         if load_layer:
                             for f in downloaded_files:
                                 raster_utils.load_point_cloud_layer(f)
             elif load_layer:
+                self.logger.info("Loading layers into project...")
                 if data_type == 3:  # Point Cloud
                     for f in downloaded_files:
                         raster_utils.load_point_cloud_layer(f)
@@ -369,7 +393,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     for f in downloaded_files:
                         raster_utils.load_raster_layer(f, data_type)
 
-            self.logger.info("Processing completed successfully!")
+            self.logger.info("Done!")
 
             return {
                 "OUTPUT_DIRECTORY": str(downloads_dir),
@@ -379,7 +403,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Critical error during processing: {str(e)}")
+                self.logger.error(f"Critical error: {str(e)}")
             return {}
         finally:
             downloader.cleanup_temp_files()
