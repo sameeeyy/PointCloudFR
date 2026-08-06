@@ -4,8 +4,8 @@
 
 ## 🚀 Highlights & New Features
 
-* **WFS Pagination**: Bypassed the IGN's 5000 feature limit by implementing robust WFS pagination (`COUNT=1000` & `STARTINDEX`).
-* **Multi-Feature Support**: Full support for processing multiple polygons within a single layer, intelligently querying WFS for each geometry and deduplicating overlapping tiles.
+* **WFS Pagination**: Introduced WFS pagination to for large areas.
+* **Multi-Feature Support**: Full support for processing multiple polygons within a single layer.
 * **Automated Testing & CI**: Implemented a comprehensive test suite (47 tests) using `pytest` with QGIS mocking, and integrated it into GitHub Actions CI.
 
 ---
