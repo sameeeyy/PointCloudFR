@@ -2,14 +2,13 @@ name: Build and Deploy QGIS Plugin
 
 on:
   push:
-    branches:
-      - main
+    branches-ignore:
+      - pre-commit-fixes
     tags:
       - 'v*'
   pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+    branches-ignore:
+      - pre-commit-fixes
 
 jobs:
   build:

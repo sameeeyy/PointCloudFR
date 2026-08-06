@@ -1,9 +1,5 @@
 # Changelog
 
-## [2.3.1] - 2026-08-07
-
-* **CI / Actions**: Fixed an issue where the GitHub Actions CI trigger failed to process tags properly.
-
 ## [2.3.0] - 2026-08-07
 
 ## 🚀 Highlights & New Features
