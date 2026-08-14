@@ -10,11 +10,12 @@ on:
     branches-ignore:
       - pre-commit-fixes
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      zip-name: ${{ steps.find-zip.outputs.zip-name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,12 +32,15 @@ jobs:
         continue-on-error: true
 
       - name: Create PR for pre-commit fixes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.PAT }}
           branch: pre-commit-fixes
           base: main
           commit-message: "Automated formatting corrections [skip ci]"
+          title: "Automated formatting corrections"
+          body: "Auto-generated PR containing pre-commit fixes."
 
       - name: Install dependencies
         run: |
@@ -48,10 +52,6 @@ jobs:
 
       - name: Build the QGIS plugin
         run: python setup.py build -u -d dist .
-
-      - name: Find built zip name
-        id: find-zip
-        run: echo "zip-name=$(ls dist/*.zip | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -85,16 +85,19 @@ jobs:
 
           echo "Extracting changelog for version: $VERSION"
 
-          # Extraire le bloc entre ## [VERSION] et le prochain ## [
-          CHANGELOG=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          # Extraction directe du bloc de version vers release_notes.txt
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release_notes.txt
 
-          if [ -z "$CHANGELOG" ]; then
+          # Si aucune section n'a été trouvée (fichier vide)
+          if [ ! -s release_notes.txt ]; then
             echo "⚠️ Aucune section trouvée dans CHANGELOG.md pour la version $VERSION"
-            CHANGELOG="Voir [CHANGELOG.md](CHANGELOG.md) pour le détail des changements."
+            echo "Voir [CHANGELOG.md](CHANGELOG.md) pour le détail des changements." > release_notes.txt
           fi
 
-          # Écrire le contenu dans un fichier pour éviter les problèmes d'échappement
-          echo "$CHANGELOG" > release_notes.txt
           echo "Contenu extrait :"
           cat release_notes.txt
 
