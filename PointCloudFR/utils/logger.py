@@ -34,10 +34,18 @@ class LidarLogger:
             for old_file in log_files[MAX_LOG_FILES:]:
                 try:
                     old_file.unlink()
-                except OSError:
-                    pass
-        except Exception:
-            pass
+                except OSError as e:
+                    QgsMessageLog.logMessage(
+                        f"Failed to delete old log file {old_file}: {e}",
+                        PLUGIN_NAME,
+                        Qgis.MessageLevel.Warning,
+                    )
+        except OSError as e:
+            QgsMessageLog.logMessage(
+                f"Failed to rotate log files in {log_dir}: {e}",
+                PLUGIN_NAME,
+                Qgis.MessageLevel.Warning,
+            )
 
     def info(self, message: str):
         """Log info message visible to user in processing feedback."""
