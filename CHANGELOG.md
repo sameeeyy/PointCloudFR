@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.3.1] - 2026-09-10
+
+## 🚀 Highlights & Improvements
+
+* **IGN Géoplateforme WFS Migration**: Bascule vers la couche unifiée `IGNF_LIDAR-HD_METADONNEE:metadata` et extraction par attribut (`url_mnt`, `url_mns`, `url_mnh`, `url_npl`).
+* **Pagination WFS Fiabilisée**: Correction de la condition d'arrêt prématuré de pagination sur les grandes zones.
+* **Extraction Robuste des Fichiers**: Parsing standardisé des URLs WMS-R / COPC LAZ via `urllib.parse` avec gestion insensible à la casse.
+* **Optimisation QGIS & Mémoire**: Lecture paresseuse du premier élément pour la détection de territoire et nettoyage des dépendances inutilisées.
+
+---
+
 ## [2.3.0] - 2026-08-07
 
 ## 🚀 Highlights & New Features

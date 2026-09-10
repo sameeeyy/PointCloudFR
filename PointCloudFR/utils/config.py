@@ -17,11 +17,13 @@ DATA_TYPE_OPTIONS = [
     "LIDAR (Point Cloud)",
 ]
 
-DATA_TYPE_CODES = {
-    0: "IGNF_MNT-LIDAR-HD:dalle",   # MNT
-    1: "IGNF_MNS-LIDAR-HD:dalle",   # MNS
-    2: "IGNF_MNH-LIDAR-HD:dalle",   # MNH
-    3: "IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle",  # LIDAR
+WFS_LAYER_NAME = "IGNF_LIDAR-HD_METADONNEE:metadata"
+
+DATA_TYPE_PROPERTY_MAP = {
+    0: "url_mnt",   # MNT
+    1: "url_mns",   # MNS
+    2: "url_mnh",   # MNH
+    3: "url_npl",   # LIDAR (Nuage de points)
 }
 
 # --- Merge Strategy Definitions ---

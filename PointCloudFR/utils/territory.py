@@ -11,7 +11,6 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsGeometry,
     QgsProject,
-    QgsPointXY,
 )
 
 # Territory definitions with their native CRS and bounding boxes in WGS84 (lon_min, lat_min, lon_max, lat_max)

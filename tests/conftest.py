@@ -1,7 +1,6 @@
 """Shared fixtures for PointCloudFR tests."""
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -30,14 +29,18 @@ def _create_qgis_mocks():
 
 _qgis_mocks = _create_qgis_mocks()
 
+
 # Provide commonly used QGIS classes
 class MockQgsProcessingAlgorithm:
     def __init__(self, *args, **kwargs):
         pass
+
     def initAlgorithm(self, config=None):
         pass
+
     def processAlgorithm(self, parameters, context, feedback):
         pass
+
 
 sys.modules["qgis.core"].QgsProcessingAlgorithm = MockQgsProcessingAlgorithm
 QgsProcessingAlgorithm = MockQgsProcessingAlgorithm
@@ -113,8 +116,8 @@ def sample_wfs_response():
             {
                 "type": "Feature",
                 "properties": {
-                    "url": "https://data.geopf.fr/download/tile_001.tif",
-                    "name": "tile_001.tif",
+                    "url_mnt": "https://data.geopf.fr/wms-r?FILENAME=tile_001.tif",
+                    "coordonnees_nw": "0001",
                 },
                 "geometry": {
                     "type": "Polygon",
@@ -124,8 +127,8 @@ def sample_wfs_response():
             {
                 "type": "Feature",
                 "properties": {
-                    "url": "https://data.geopf.fr/download/tile_002.tif",
-                    "name": "tile_002.tif",
+                    "url_mnt": "https://data.geopf.fr/wms-r?FILENAME=tile_002.tif",
+                    "coordonnees_nw": "0002",
                 },
                 "geometry": {
                     "type": "Polygon",

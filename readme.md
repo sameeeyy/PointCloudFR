@@ -113,11 +113,12 @@ We welcome professional contributions, bug reports, and structural ideas.
 PointCloudFR retrieves analytical geospatial structures orchestrated by the **French National Geographic Institute (IGN)** through the Géoplateforme APIs.
 
 * **Web Feature Service**: [IGN Géoplateforme WFS (EPSG:2154)](https://data.geopf.fr/wfs/ows)
+* **Metadata Layer**: `IGNF_LIDAR-HD_METADONNEE:metadata`
 * **Datasets Leveraged**:
-  - `IGNF_MNT-LIDAR-HD:dalle` (Digital Terrain Model)
-  - `IGNF_MNS-LIDAR-HD:dalle` (Digital Surface Model)
-  - `IGNF_MNH-LIDAR-HD:dalle` (Digital Height Model)
-  - `IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle` (LiDAR Point Cloud)
+  - `url_mnt` : Modèle Numérique de Terrain (MNT / DTM)
+  - `url_mns` : Modèle Numérique de Surface (MNS / DSM)
+  - `url_mnh` : Modèle Numérique de Hauteur (MNH / DHM)
+  - `url_npl` : Nuage de points classé (COPC LAZ)
 
 *All intellectual property rights and original topographical responsibilities belong entirely to IGN.*
 

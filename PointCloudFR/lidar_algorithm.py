@@ -24,7 +24,7 @@ from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
 from .utils.config import (
     DATA_TYPE_OPTIONS,
-    DATA_TYPE_CODES,
+    DATA_TYPE_PROPERTY_MAP,
     STRATEGY_OPTIONS,
     MIN_DISK_SPACE_MB,
     MAX_TILES_RECOMMENDED,
@@ -165,7 +165,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 geometries.append(geom_copy)
         return geometries
 
-    def _query_tiles_for_geometries(self, geometries, data_type_code, territory):
+    def _query_tiles_for_geometries(self, geometries, property_key, territory):
         """Query WFS for each geometry individually and deduplicate tiles by name."""
         all_tiles = {}  # key = tile name → deduplicates automatically
         total = len(geometries)
@@ -177,7 +177,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             if total > 1:
                 self.logger.info(f"Searching tiles for feature {i + 1}/{total}...")
 
-            tiles = query_wfs_tiles(geom, data_type_code, self.logger, territory)
+            tiles = query_wfs_tiles(geom, property_key, self.logger, territory)
             for tile in tiles:
                 all_tiles[tile["name"]] = tile
 
@@ -202,15 +202,15 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             )
             load_layer = self.parameterAsBool(parameters, self.LOAD_LAYER, context)
 
-            data_type_code = DATA_TYPE_CODES.get(data_type)
-            if not data_type_code:
+            property_key = DATA_TYPE_PROPERTY_MAP.get(data_type)
+            if not property_key:
                 self.logger.error(f"Invalid data type: {data_type}")
                 return {}
 
             data_type_label = DATA_TYPE_OPTIONS[data_type].split(" (")[0]
             self.logger.info(f"Downloading {data_type_label} data...")
 
-            self.logger.debug(f"Data type code: {data_type_code}")
+            self.logger.debug(f"Data type property: {property_key}")
             self.logger.debug(f"Max concurrent downloads: {max_downloads}")
             self.logger.debug(f"Force download: {force_download}")
             self.logger.debug(f"Merge strategy: {STRATEGY_OPTIONS[merge_strategy]}")
@@ -235,8 +235,10 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # --- Collect all geometries from input layer ---
             source_crs = source.sourceCrs()
+            first_feature = next(source.getFeatures(), None)
+            first_geom = first_feature.geometry() if first_feature else QgsGeometry()
             territory = detect_territory(
-                list(source.getFeatures())[0].geometry() if source.featureCount() > 0 else QgsGeometry(),
+                first_geom,
                 source_crs,
                 self.logger,
             )
@@ -261,7 +263,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             # --- Query WFS for each feature, deduplicate ---
             self.logger.info("Searching for tiles...")
             wfs_tiles = self._query_tiles_for_geometries(
-                geometries, data_type_code, territory
+                geometries, property_key, territory
             )
 
             if not wfs_tiles:
@@ -317,7 +319,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
                 for future in concurrent.futures.as_completed(futures):
                     url_id = futures[future]
-                    
+
                     if self.feedback.isCanceled():
                         self.logger.info("Cancellation requested — stopping downloads...")
                         for f in futures:
@@ -354,7 +356,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 if data_type != 3:
                     self.logger.info("Merging rasters...")
                     merged_file = raster_utils.merge_rasters_gdal(
-                        downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.tif"
+                        downloaded_files, output_folder, f"merged_{data_type_label}.tif"
                     )
                     if merged_file:
                         final_output = merged_file
@@ -369,7 +371,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 else:
                     self.logger.info("Merging point clouds...")
                     merged_file = raster_utils.merge_point_clouds(
-                        downloaded_files, output_folder, f"merged_{data_type_code.split(':')[1]}.laz"
+                        downloaded_files, output_folder, f"merged_{data_type_label}.laz"
                     )
                     if merged_file:
                         final_output = merged_file
