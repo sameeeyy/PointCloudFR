@@ -39,12 +39,14 @@ def _parse_wfs_features(geojson_data: dict, property_key: str) -> List[dict]:
                 coordonnees = properties.get("coordonnees_nw", "unknown")
                 name = f"tile_{coordonnees}_{property_key}"
 
-            tiles.append({
-                "url": url,
-                "name": name,
-                "geometry": feature.get("geometry"),
-                "properties": properties,
-            })
+            tiles.append(
+                {
+                    "url": url,
+                    "name": name,
+                    "geometry": feature.get("geometry"),
+                    "properties": properties,
+                }
+            )
     return tiles
 
 

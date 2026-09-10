@@ -1,5 +1,6 @@
 import configparser
 from pathlib import Path
+
 from qgis.core import QgsSettings
 
 PLUGIN_NAME = "PointCloudFR"
@@ -20,10 +21,10 @@ DATA_TYPE_OPTIONS = [
 WFS_LAYER_NAME = "IGNF_LIDAR-HD_METADONNEE:metadata"
 
 DATA_TYPE_PROPERTY_MAP = {
-    0: "url_mnt",   # MNT
-    1: "url_mns",   # MNS
-    2: "url_mnh",   # MNH
-    3: "url_npl",   # LIDAR (Nuage de points)
+    0: "url_mnt",  # MNT
+    1: "url_mns",  # MNS
+    2: "url_mnh",  # MNH
+    3: "url_npl",  # LIDAR (Nuage de points)
 }
 
 # --- Merge Strategy Definitions ---

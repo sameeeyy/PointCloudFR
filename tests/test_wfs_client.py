@@ -1,4 +1,5 @@
 """Tests for WFS client module."""
+
 from unittest.mock import MagicMock, patch
 
 
