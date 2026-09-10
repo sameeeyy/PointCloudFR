@@ -28,6 +28,7 @@ jobs:
           python-version: '3.10'
 
       - name: Format code base
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: pre-commit/action@v3.0.1
         continue-on-error: true
 
@@ -42,6 +43,9 @@ jobs:
           title: "Automated formatting corrections"
           body: "Auto-generated PR containing pre-commit fixes."
 
+      - name: Ensure clean git working directory
+        run: git checkout -- .
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -51,7 +55,7 @@ jobs:
         run: python -m pytest tests/ -v
 
       - name: Build the QGIS plugin
-        run: python setup.py build -u -d dist .
+        run: python setup.py build -d dist .
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

@@ -1,4 +1,5 @@
 import argparse
+import os
 import platform
 import re
 import sys
@@ -103,28 +104,48 @@ class QgisSetup:
 
     @classmethod
     def next(cls, project: Path = Path()) -> str:
-        """Determine the next version number using setuptools_scm.
+        """Determine the next version number using git tags or setuptools_scm.
 
         Args:
             project (Path, optional): Path to the project directory or file.
                 If a file is provided, its parent directory is used. Defaults to current directory.
 
         Returns:
-            str: The next version number based on git tags and commits.
-
-        Raises:
-            RuntimeError: If setuptools_scm is not found.
+            str: The version number based on git tags and commits.
         """
+        path = Path(project)
+        if path.is_file():
+            path = path.parent
+
+        # 1. In CI: detect release tag from GitHub environment variables
+        for env_var in ("GITHUB_REF_NAME", "GITHUB_REF"):
+            val = os.environ.get(env_var, "")
+            if val.startswith("refs/tags/"):
+                val = val[len("refs/tags/") :]
+            if re.match(r"^v?\d+\.\d+(\.\d+)?", val):
+                return val.lstrip("v")
+
+        # 2. Check if current commit HEAD has an exact git tag
+        try:
+            import subprocess
+
+            out = subprocess.check_output(
+                ["git", "describe", "--tags", "--exact-match", "HEAD"],
+                cwd=str(path),
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            if re.match(r"^v?\d+\.\d+(\.\d+)?", out):
+                return out.lstrip("v")
+        except Exception:
+            pass
+
+        # 3. Fallback to setuptools_scm
         try:
             from setuptools_scm import get_version
 
-            path = Path(project)
-            if path.is_file():
-                path = path.parent
-
-            return get_version(path)
-
-        except ImportError:
+            return get_version(path, local_scheme="no-local-version")
+        except Exception:
             return None
 
     @classmethod
@@ -154,9 +175,18 @@ class QgisSetup:
 
         try:  # fetch & parse plugin manifest
             manifest = next(path.glob("**/metadata.txt"))
-            metadata = manifest.read_text()
+            metadata = manifest.read_text(encoding="utf-8")
             old = re.search(r"version\s*?=\s*?(\S+)", metadata).group(1)
             version = version or old
+
+            # Protection: Never overwrite a clean release version in metadata.txt with a dev version!
+            if version and "dev" in version and "dev" not in old:
+                print(
+                    f"skipping bump to dev version ({version}), keeping release version {old}... ",
+                    end="",
+                )
+                return old
+
             if old == version:
                 return version
             print(
@@ -167,7 +197,7 @@ class QgisSetup:
             metadata = re.sub(
                 r"(experimental\s*?=\s*?)\S+", f"\\g<1>{'dev' in version}", metadata
             )
-            manifest.write_text(metadata)
+            manifest.write_text(metadata, encoding="utf-8")
         except StopIteration:
             raise RuntimeError(f"Could not find a valid QGIS plugin in '{path}'!")
         else:
@@ -211,7 +241,7 @@ class QgisSetup:
             if path.is_file():
                 path = path.parent
             manifest = next(path.glob("**/metadata.txt"))
-            metadata = manifest.read_text()
+            metadata = manifest.read_text(encoding="utf-8")
             name = re.search(r"name\s*?=\s*?(\S+)", metadata)
             version = re.search(r"version\s*?=\s*?(\S+)", metadata)
             assert name, f"Plugin manifest '{manifest}' has no attribute `name`!"

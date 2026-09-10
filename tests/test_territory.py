@@ -1,6 +1,5 @@
 """Tests for territory detection module."""
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import MagicMock
 
 
 class TestTerritoryDetection:

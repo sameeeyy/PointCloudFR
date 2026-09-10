@@ -1,7 +1,6 @@
 import importlib.metadata
 import importlib.util
 import locale
-import os
 import subprocess
 import sys
 from pathlib import Path
