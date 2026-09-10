@@ -7,11 +7,11 @@ Usage:
     python install.py --remove # Remove the plugin
 """
 
+import argparse
 import os
-import sys
 import shutil
 import subprocess
-import argparse
+import sys
 from pathlib import Path
 
 

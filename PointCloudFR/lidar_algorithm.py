@@ -19,15 +19,15 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-from .core.wfs_client import query_wfs_tiles
 from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
+from .core.wfs_client import query_wfs_tiles
 from .utils.config import (
     DATA_TYPE_OPTIONS,
     DATA_TYPE_PROPERTY_MAP,
-    STRATEGY_OPTIONS,
-    MIN_DISK_SPACE_MB,
     MAX_TILES_RECOMMENDED,
+    MIN_DISK_SPACE_MB,
+    STRATEGY_OPTIONS,
 )
 from .utils.logger import LidarLogger
 from .utils.territory import detect_territory
@@ -321,7 +321,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     url_id = futures[future]
 
                     if self.feedback.isCanceled():
-                        self.logger.info("Cancellation requested — stopping downloads...")
+                        self.logger.info(
+                            "Cancellation requested — stopping downloads..."
+                        )
                         for f in futures:
                             if not f.done():
                                 f.cancel()
@@ -344,9 +346,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 self.logger.error("No files were successfully downloaded.")
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
-            self.logger.info(
-                f"Downloaded {len(downloaded_files)}/{total_files} files"
-            )
+            self.logger.info(f"Downloaded {len(downloaded_files)}/{total_files} files")
 
             final_output = downloaded_files[0] if downloaded_files else ""
             output_files_str = ";".join(downloaded_files)

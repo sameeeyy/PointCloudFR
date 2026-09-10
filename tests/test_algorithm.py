@@ -1,4 +1,5 @@
 """Tests for the main algorithm module."""
+
 from unittest.mock import MagicMock, patch
 
 
