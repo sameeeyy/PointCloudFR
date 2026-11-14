@@ -1,5 +1,3 @@
-import tempfile
-import shutil
 from pathlib import Path
 
 from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsSettings
@@ -7,7 +5,6 @@ from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QMessageBox
 
 from .utils.config import get_plugin_version, PluginSettings, PLUGIN_NAME
-from .utils.installer import DependencyInstaller
 
 # Plugin version dynamically read from metadata.txt
 VERSION = get_plugin_version()
@@ -67,7 +64,6 @@ class LidarPlugin:
             if self.provider is None:
                 self.provider = LidarProcessingProvider()
                 QgsApplication.processingRegistry().addProvider(self.provider)
-                self.provider.refreshAlgorithms()
                 QgsMessageLog.logMessage(
                     "Provider added successfully", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
@@ -91,24 +87,10 @@ class LidarPlugin:
                     "Provider removed successfully", PLUGIN_NAME, Qgis.MessageLevel.Info
                 )
 
-            # Clear version setting but keep ever_installed flag
-            self.settings.remove("version")
-
         except Exception as e:
             QgsMessageLog.logMessage(
                 f"Error removing provider: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
             )
-        finally:
-            try:
-                temp_dir = Path(tempfile.gettempdir()) / PLUGIN_NAME
-                if temp_dir.exists():
-                    shutil.rmtree(temp_dir)
-            except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Error cleaning temporary files: {str(e)}",
-                    PLUGIN_NAME,
-                    Qgis.MessageLevel.Warning,
-                )
 
 
 def classFactory(iface):
@@ -116,12 +98,6 @@ def classFactory(iface):
     try:
         settings = PluginSettings()
         ever_installed = settings.get("ever_installed", False)
-
-        # Install dependencies
-        installer = DependencyInstaller()
-        if not installer.install():
-            show_error_message("Failed to install required dependencies. Please check the QGIS log for details.")
-            return None
 
         # Show welcome message only on first ever installation
         if not ever_installed:
@@ -131,7 +107,6 @@ def classFactory(iface):
                 "Welcome",
             )
             settings.set("ever_installed", True)
-            settings.set("version", VERSION)
 
         return LidarPlugin(iface)
 

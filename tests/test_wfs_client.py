@@ -1,4 +1,5 @@
 """Tests for WFS client module."""
+import pytest
 from unittest.mock import MagicMock, patch
 
 
@@ -6,7 +7,7 @@ class TestParseWfsFeatures:
     """Test the _parse_wfs_features helper."""
 
     def test_parse_valid_features(self, sample_wfs_response):
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         tiles = _parse_wfs_features(sample_wfs_response, "url_mnt")
         assert len(tiles) == 2
@@ -15,19 +16,19 @@ class TestParseWfsFeatures:
         assert tiles[0]["geometry"] is not None
 
     def test_parse_empty_features(self):
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         tiles = _parse_wfs_features({"features": []}, "url_mnt")
         assert tiles == []
 
     def test_parse_no_features_key(self):
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         tiles = _parse_wfs_features({}, "url_mnt")
         assert tiles == []
 
     def test_parse_skips_features_without_url(self):
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         data = {
             "features": [
@@ -41,7 +42,7 @@ class TestParseWfsFeatures:
 
     def test_parse_uses_coordonnees_fallback(self):
         """The WFS parser falls back to coordonnees_nw if filename cannot be determined."""
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         data = {
             "features": [
@@ -59,7 +60,7 @@ class TestParseWfsFeatures:
 
     def test_parse_copc_laz_filename(self):
         """Extract filename from COPC LAZ url for point cloud product."""
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         data = {
             "features": [
@@ -85,7 +86,7 @@ class TestParseWfsFeatures:
 
     def test_parse_wms_r_filename_parameter(self):
         """Extract filename from FILENAME parameter in WMS-R url."""
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         data = {
             "features": [
@@ -107,7 +108,7 @@ class TestParseWfsFeatures:
 
     def test_parse_wms_r_case_insensitive_filename(self):
         """Extract filename even if parameter is lowercase filename=."""
-        from PointCloudFR.core.wfs_client import _parse_wfs_features
+        from point_cloud_fr.core.wfs_client import _parse_wfs_features
 
         data = {
             "features": [
@@ -148,7 +149,7 @@ class TestQueryWfsTiles:
             "urn": "urn:ogc:def:crs:EPSG::2154",
         }
 
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_single_page_query(self, mock_get, mock_logger, sample_wfs_response):
         """Query with fewer results than page size should make one request."""
         mock_response = MagicMock()
@@ -157,8 +158,8 @@ class TestQueryWfsTiles:
         mock_get.return_value.__enter__ = MagicMock(return_value=mock_response)
         mock_get.return_value = mock_response
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
-        from PointCloudFR.utils.config import WFS_LAYER_NAME
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.utils.config import WFS_LAYER_NAME
 
         tiles = query_wfs_tiles(
             self._make_mock_geometry(),
@@ -173,13 +174,14 @@ class TestQueryWfsTiles:
         # Verify pagination params were sent
         call_kwargs = mock_get.call_args[1]
         params = call_kwargs["params"]
+        assert call_kwargs["verify"] is True  # SSL verification on by default
         assert params["TYPENAME"] == WFS_LAYER_NAME
         assert params["STARTINDEX"] == 0
 
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_multi_page_query(self, mock_get, mock_logger, sample_wfs_response):
         """Query requiring multiple pages."""
-        from PointCloudFR.core.wfs_client import WFS_PAGE_SIZE
+        from point_cloud_fr.core.wfs_client import WFS_PAGE_SIZE
 
         # First request returns full page
         full_page_response = MagicMock()
@@ -212,7 +214,7 @@ class TestQueryWfsTiles:
 
         mock_get.side_effect = [full_page_response, partial_page_response]
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
 
         tiles = query_wfs_tiles(
             self._make_mock_geometry(),
@@ -224,10 +226,10 @@ class TestQueryWfsTiles:
         assert mock_get.call_count == 2
         assert len(tiles) == WFS_PAGE_SIZE + 1
 
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_multi_page_with_partial_feature_matches(self, mock_get, mock_logger):
         """Query continues to next page even if page 1 has fewer matching tiles than WFS_PAGE_SIZE."""
-        from PointCloudFR.core.wfs_client import WFS_PAGE_SIZE
+        from point_cloud_fr.core.wfs_client import WFS_PAGE_SIZE
 
         # Page 1 has WFS_PAGE_SIZE raw features, but only 1 has url_npl
         page1_features = [
@@ -258,7 +260,7 @@ class TestQueryWfsTiles:
 
         mock_get.side_effect = [page1_response, page2_response]
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
 
         tiles = query_wfs_tiles(
             self._make_mock_geometry(),
@@ -271,7 +273,7 @@ class TestQueryWfsTiles:
         assert mock_get.call_count == 2
         assert len(tiles) == 2
 
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_query_no_results(self, mock_get, mock_logger):
         """WFS returning no features should return empty list."""
         mock_response = MagicMock()
@@ -279,7 +281,7 @@ class TestQueryWfsTiles:
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
 
         tiles = query_wfs_tiles(
             self._make_mock_geometry(),
@@ -291,9 +293,9 @@ class TestQueryWfsTiles:
         assert mock_get.call_count == 1
         assert len(tiles) == 0
 
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_query_http_error(self, mock_get, mock_logger):
-        """HTTP error should be caught and logged."""
+        """HTTP error must abort the run, not return partial tiles."""
         import requests
 
         mock_response = MagicMock()
@@ -302,19 +304,17 @@ class TestQueryWfsTiles:
         )
         mock_get.return_value = mock_response
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
 
-        tiles = query_wfs_tiles(
-            self._make_mock_geometry(),
-            "url_mnt",
-            mock_logger,
-            self._make_territory(),
-        )
+        with pytest.raises(RuntimeError, match="HTTP Error"):
+            query_wfs_tiles(
+                self._make_mock_geometry(),
+                "url_mnt",
+                mock_logger,
+                self._make_territory(),
+            )
 
-        assert len(tiles) == 0
-        assert mock_logger.feedback.reportError.called
-
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_query_400_error(self, mock_get, mock_logger):
         """400 error should have a specific log message."""
         import requests
@@ -327,35 +327,29 @@ class TestQueryWfsTiles:
         mock_response.raise_for_status.side_effect = http_error
         mock_get.return_value = mock_response
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
 
-        tiles = query_wfs_tiles(
-            self._make_mock_geometry(),
-            "url_mnt",
-            mock_logger,
-            self._make_territory(),
-        )
+        with pytest.raises(RuntimeError, match="400 Error"):
+            query_wfs_tiles(
+                self._make_mock_geometry(),
+                "url_mnt",
+                mock_logger,
+                self._make_territory(),
+            )
 
-        assert len(tiles) == 0
-        assert mock_logger.feedback.reportError.called
-        log_message = mock_logger.feedback.reportError.call_args[0][0]
-        assert "400 Error" in log_message
-
-    @patch("PointCloudFR.core.wfs_client.requests.get")
+    @patch("point_cloud_fr.core.wfs_client.requests.get")
     def test_query_connection_error(self, mock_get, mock_logger):
-        """Connection error should be caught and logged."""
+        """Connection error must abort the run, not return partial tiles."""
         import requests
 
         mock_get.side_effect = requests.exceptions.ConnectionError("No internet")
 
-        from PointCloudFR.core.wfs_client import query_wfs_tiles
+        from point_cloud_fr.core.wfs_client import query_wfs_tiles
 
-        tiles = query_wfs_tiles(
-            self._make_mock_geometry(),
-            "url_mnt",
-            mock_logger,
-            self._make_territory(),
-        )
-
-        assert len(tiles) == 0
-        assert mock_logger.feedback.reportError.called
+        with pytest.raises(RuntimeError, match="Connection error"):
+            query_wfs_tiles(
+                self._make_mock_geometry(),
+                "url_mnt",
+                mock_logger,
+                self._make_territory(),
+            )

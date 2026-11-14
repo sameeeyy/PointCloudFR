@@ -1,6 +1,10 @@
 import configparser
+import os
 from pathlib import Path
-from qgis.core import QgsSettings
+from urllib.parse import quote
+
+from qgis.core import QgsNetworkAccessManager, QgsSettings
+from qgis.PyQt.QtNetwork import QNetworkProxy
 
 PLUGIN_NAME = "PointCloudFR"
 PLUGIN_DIR = Path(__file__).parent.parent
@@ -47,6 +51,37 @@ def get_plugin_version() -> str:
         return config.get("general", "version", fallback="1.0.0")
     except Exception:
         return "1.0.0"
+
+
+SSL_VERIFY_ENV = "POINTCLOUDFR_SSL_VERIFY"
+
+
+def ssl_verify() -> bool:
+    """SSL verification is on unless POINTCLOUDFR_SSL_VERIFY=0 (SSL-inspecting proxies)."""
+    return os.environ.get(SSL_VERIFY_ENV, "1") != "0"
+
+
+def get_qgis_proxies(url: str):
+    """requests-style proxies from QGIS network settings (Settings > Options > Network).
+
+    Call from the algorithm thread only, never from download workers.
+    None means "let requests use the system/environment proxy".
+    """
+    nam = QgsNetworkAccessManager.instance()
+    if any(u.strip() and url.startswith(u) for u in nam.noProxyList()):
+        return {"http": "", "https": ""}
+    # fallbackProxy already includes credentials stored in a QGIS auth config
+    proxy = nam.fallbackProxy()
+    host = proxy.hostName()
+    if not host or any(u.strip() and url.startswith(u) for u in nam.excludeList()):
+        return None
+    # SOCKS needs the PySocks package; requests reports it clearly if missing
+    scheme = "socks5h" if proxy.type() == QNetworkProxy.ProxyType.Socks5Proxy else "http"
+    auth = ""
+    if proxy.user():
+        auth = f"{quote(proxy.user(), safe='')}:{quote(proxy.password(), safe='')}@"
+    proxy_url = f"{scheme}://{auth}{host}:{proxy.port()}"
+    return {"http": proxy_url, "https": proxy_url}
 
 
 class PluginSettings:

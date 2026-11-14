@@ -1,15 +1,16 @@
 """Tests for the main algorithm module."""
+import pytest
 from unittest.mock import MagicMock, patch
 
 
 class TestAlgorithmGeometryCollection:
     """Test the geometry collection and reprojection."""
 
-    @patch("PointCloudFR.lidar_algorithm.QgsGeometry")
+    @patch("point_cloud_fr.lidar_algorithm.QgsGeometry")
     def test_collect_valid_geometries(
         self, mock_qgs_geometry_class, mock_logger, mock_feedback
     ):
-        from PointCloudFR.lidar_algorithm import LidarDownloaderAlgorithm
+        from point_cloud_fr.lidar_algorithm import LidarDownloaderAlgorithm
 
         # When QgsGeometry(geom) is called, it should just return the mocked geom
         mock_qgs_geometry_class.side_effect = lambda x: x
@@ -45,11 +46,11 @@ class TestAlgorithmGeometryCollection:
         assert geometries[0].asPoint().x() == 1
         assert geometries[1].asPoint().x() == 2
 
-    @patch("PointCloudFR.lidar_algorithm.QgsGeometry")
+    @patch("point_cloud_fr.lidar_algorithm.QgsGeometry")
     def test_collect_with_transform(
         self, mock_qgs_geometry_class, mock_logger, mock_feedback
     ):
-        from PointCloudFR.lidar_algorithm import LidarDownloaderAlgorithm
+        from point_cloud_fr.lidar_algorithm import LidarDownloaderAlgorithm
 
         algo = LidarDownloaderAlgorithm()
         algo.logger = mock_logger
@@ -78,9 +79,9 @@ class TestAlgorithmGeometryCollection:
 class TestQueryTilesForGeometries:
     """Test the WFS querying for multiple features with deduplication."""
 
-    @patch("PointCloudFR.lidar_algorithm.query_wfs_tiles")
+    @patch("point_cloud_fr.lidar_algorithm.query_wfs_tiles")
     def test_query_tiles_deduplication(self, mock_query, mock_logger, mock_feedback):
-        from PointCloudFR.lidar_algorithm import LidarDownloaderAlgorithm
+        from point_cloud_fr.lidar_algorithm import LidarDownloaderAlgorithm
 
         algo = LidarDownloaderAlgorithm()
         algo.logger = mock_logger
@@ -114,11 +115,11 @@ class TestQueryTilesForGeometries:
         assert "tile_B" in names
         assert "tile_C" in names
         assert mock_query.call_count == 2
-        mock_query.assert_called_with(geom2, "url_mnt", mock_logger, territory)
+        mock_query.assert_called_with(geom2, "url_mnt", mock_logger, territory, None, True)
 
-    @patch("PointCloudFR.lidar_algorithm.query_wfs_tiles")
+    @patch("point_cloud_fr.lidar_algorithm.query_wfs_tiles")
     def test_query_tiles_cancellation(self, mock_query, mock_logger, mock_feedback):
-        from PointCloudFR.lidar_algorithm import LidarDownloaderAlgorithm
+        from point_cloud_fr.lidar_algorithm import LidarDownloaderAlgorithm
 
         algo = LidarDownloaderAlgorithm()
         algo.logger = mock_logger
@@ -141,7 +142,7 @@ class TestDataTypeMapping:
     """Test data type configuration and mapping in algorithm."""
 
     def test_all_options_have_properties(self):
-        from PointCloudFR.utils.config import DATA_TYPE_OPTIONS, DATA_TYPE_PROPERTY_MAP
+        from point_cloud_fr.utils.config import DATA_TYPE_OPTIONS, DATA_TYPE_PROPERTY_MAP
 
         for idx in range(len(DATA_TYPE_OPTIONS)):
             assert idx in DATA_TYPE_PROPERTY_MAP
@@ -149,7 +150,7 @@ class TestDataTypeMapping:
             assert DATA_TYPE_PROPERTY_MAP[idx].startswith("url_")
 
     def test_process_algorithm_invalid_data_type(self, mock_logger, mock_feedback):
-        from PointCloudFR.lidar_algorithm import LidarDownloaderAlgorithm
+        from point_cloud_fr.lidar_algorithm import LidarDownloaderAlgorithm
 
         algo = LidarDownloaderAlgorithm()
 
@@ -159,7 +160,8 @@ class TestDataTypeMapping:
         algo.parameterAsString = MagicMock(return_value="")
         algo.parameterAsBool = MagicMock(return_value=False)
 
-        res = algo.processAlgorithm({}, MagicMock(), mock_feedback)
-        assert res == {}
-        assert mock_feedback.reportError.called
-        assert "Invalid data type: 999" in mock_feedback.reportError.call_args[0][0]
+        from qgis.core import QgsProcessingException
+
+        # Must raise (not return {}) so Model Builder stops downstream steps
+        with pytest.raises(QgsProcessingException, match="Invalid data type: 999"):
+            algo.processAlgorithm({}, MagicMock(), mock_feedback)

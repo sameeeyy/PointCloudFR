@@ -22,7 +22,7 @@ PointCloudFR is a robust QGIS plugin engineered to streamline the acquisition an
 ## ✨ Key Features
 
 - **Real-Time WFS Integration** - Direct connection to the live IGN Géoplateforme WFS service, ensuring access to the most up-to-date LiDAR tiles.
-- **Enterprise Network Compatibility** - Optimized for corporate environments with built-in proxy handling and disabled SSL verification features.
+- **Enterprise Network Compatibility** - Uses the proxy configured in QGIS (`Settings → Options → Network`), including stored credentials. Behind an SSL-inspecting corporate proxy, untick **Verify SSL certificates** (or set the environment variable `POINTCLOUDFR_SSL_VERIFY=0` to make that the default).
 - **QGIS 4 Ready** - Fully compatible with QGIS 3.34+ up to the latest QGIS 4.x versions.
 - **Multiple Data Types Supported**:
   - `LIDAR`: Raw classified point cloud data (LAZ)
@@ -45,10 +45,10 @@ PointCloudFR is a robust QGIS plugin engineered to streamline the acquisition an
 4. Click `Install Plugin`.
 
 ### Option 2: Manual Installation from GitHub Releases
-1. Download the `PointCloudFR.zip` package from the [Releases page](https://github.com/sameeeyy/PointCloudFR/releases).
+1. Download the `point_cloud_fr.X.Y.Z.zip` package from the [Releases page](https://github.com/sameeeyy/PointCloudFR/releases).
 2. Open QGIS.
 3. Navigate to `Plugins → Manage and Install Plugins → Install from ZIP`.
-4. Select the downloaded `PointCloudFR.zip` file.
+4. Select the downloaded `.zip` file.
 5. Click `Install Plugin`.
 
 ### Option 3: Development / From Source
@@ -57,15 +57,17 @@ To install directly from source or compile the package yourself:
 git clone https://github.com/sameeeyy/PointCloudFR
 cd PointCloudFR
 
-# Standard installation
-python -m setup.py install -fu .
+# Copy the plugin into your default QGIS profile (-f overwrites, -p <profile> picks another one)
+python setup.py install -f
 
-# Install as an editable/live-link (ideal for development)
-python -m setup.py install -feu .
+# Or symlink it, so code changes are live (on Windows this needs Developer Mode)
+python setup.py install -fe
 
-# Create the .zip package distribution
-python -m setup.py build -u .
+# Build the .zip package (needs `pip install qgis-plugin-ci` and a clean git tree)
+qgis-plugin-ci package latest
 ```
+
+Releases are automated: pushing a `vX.Y.Z` tag runs [qgis-plugin-ci](https://github.com/qgis/qgis-plugin-ci), which builds the ZIP, creates the GitHub Release with the `CHANGELOG.md` notes and publishes the version on plugins.qgis.org.
 
 ## 🎯 Quick Start Guide
 
@@ -83,11 +85,12 @@ python -m setup.py build -u .
 | Parameter | Type | Description | Default |
 | :--- | :--- | :--- | :--- |
 | **Input AOI** | Layer | The bounding geography intersecting desired tiles | *None* |
-| **Data Type** | Enum | Topographic product to retrieve (`LIDAR`, `MNT`, `MNS`, `MNH`) | `LIDAR` |
+| **Data Type** | Enum | Topographic product to retrieve (`MNT`, `MNS`, `MNH`, `LIDAR`) | `MNT` |
 | **Output Folder** | Path | Local directory for storing acquired datasets | *None* |
 | **Max Downloads** | Integer | Number of concurrent HTTP connections (1-10) | `4` |
 | **Force Download** | Boolean | Ignore cached files and force fresh retrieval | `False` |
 | **Processing Strategy** | Enum | Behaviour when confronting multiple tiles (`Download All`, `Merge All`, `Most Coverage`) | `Download All` |
+| **Verify SSL certificates** | Boolean | Untick behind an SSL-inspecting corporate proxy | `True` |
 | **Load Layer** | Boolean | Seamlessly inject the processed files into the active QGIS project | `True` |
 
 ## 💡 Best Practices
