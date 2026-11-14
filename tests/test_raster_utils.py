@@ -50,11 +50,11 @@ def _mock_qgs_geometry_from_polygon(coords):
 class TestFilterIntersectingTiles:
     """Test tile intersection filtering."""
 
-    @patch("PointCloudFR.core.raster_utils.QgsGeometry")
-    @patch("PointCloudFR.core.raster_utils.QgsPointXY")
+    @patch("point_cloud_fr.core.raster_utils.QgsGeometry")
+    @patch("point_cloud_fr.core.raster_utils.QgsPointXY")
     def test_filters_non_intersecting_tiles(self, MockPointXY, MockGeometry, mock_logger, sample_tiles):
         """Tile C (far away) should be filtered out."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         # Make QgsPointXY just return a tuple-like object
         MockPointXY.side_effect = lambda x, y: (x, y)
@@ -79,7 +79,7 @@ class TestFilterIntersectingTiles:
 
     def test_empty_tiles_list(self, mock_logger):
         """Empty tile list should return empty."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         utils = RasterUtils(mock_logger)
         aoi = MagicMock()
@@ -92,7 +92,7 @@ class TestSelectBestTiles:
 
     def test_strategy_download_all(self, mock_logger, sample_tiles):
         """Strategy 0 should return all tiles."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         utils = RasterUtils(mock_logger)
         aoi = MagicMock()
@@ -101,18 +101,18 @@ class TestSelectBestTiles:
 
     def test_strategy_merge_all(self, mock_logger, sample_tiles):
         """Strategy 1 should return all tiles."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         utils = RasterUtils(mock_logger)
         aoi = MagicMock()
         result = utils.select_best_tiles(sample_tiles, aoi, strategy=1)
         assert len(result) == 3
 
-    @patch("PointCloudFR.core.raster_utils.QgsGeometry")
-    @patch("PointCloudFR.core.raster_utils.QgsPointXY")
+    @patch("point_cloud_fr.core.raster_utils.QgsGeometry")
+    @patch("point_cloud_fr.core.raster_utils.QgsPointXY")
     def test_strategy_most_coverage(self, MockPointXY, MockGeometry, mock_logger, sample_tiles):
         """Strategy 2 should return only the tile with the most coverage."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         MockPointXY.side_effect = lambda x, y: (x, y)
 
@@ -133,7 +133,7 @@ class TestSelectBestTiles:
 
     def test_single_tile_no_selection(self, mock_logger):
         """Single tile should be returned as-is regardless of strategy."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         utils = RasterUtils(mock_logger)
         single = [{"name": "only_tile", "geometry": None, "url": "http://x.com", "properties": {}}]
@@ -142,7 +142,7 @@ class TestSelectBestTiles:
 
     def test_empty_tiles(self, mock_logger):
         """Empty tile list should return empty."""
-        from PointCloudFR.core.raster_utils import RasterUtils
+        from point_cloud_fr.core.raster_utils import RasterUtils
 
         utils = RasterUtils(mock_logger)
         result = utils.select_best_tiles([], MagicMock(), strategy=0)

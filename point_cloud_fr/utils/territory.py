@@ -128,8 +128,3 @@ def detect_territory(aoi_geometry: QgsGeometry, source_crs: QgsCoordinateReferen
                 f"Defaulting to France métropolitaine (EPSG:2154)."
             )
         return DEFAULT_TERRITORY
-
-
-def get_native_crs(territory: dict) -> QgsCoordinateReferenceSystem:
-    """Return the QgsCoordinateReferenceSystem for a given territory dictionary."""
-    return QgsCoordinateReferenceSystem(territory["srsname"])
