@@ -2,7 +2,8 @@ from datetime import datetime
 from pathlib import Path
 from qgis.core import Qgis, QgsMessageLog
 
-PLUGIN_NAME = "PointCloudFR"
+from .config import PLUGIN_NAME
+
 MAX_LOG_FILES = 10
 
 

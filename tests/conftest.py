@@ -17,6 +17,7 @@ def _create_qgis_mocks():
         "qgis.PyQt.QtCore",
         "qgis.PyQt.QtWidgets",
         "qgis.PyQt.QtGui",
+        "qgis.PyQt.QtNetwork",
         "processing",
     ]
     mocks = {}
@@ -43,6 +44,13 @@ class MockQgsProcessingAlgorithm:
 
 
 sys.modules["qgis.core"].QgsProcessingAlgorithm = MockQgsProcessingAlgorithm
+
+
+class QgsProcessingException(Exception):
+    """Real exception class: a MagicMock cannot be raised."""
+
+
+sys.modules["qgis.core"].QgsProcessingException = QgsProcessingException
 QgsProcessingAlgorithm = MockQgsProcessingAlgorithm
 
 Qgis = sys.modules["qgis.core"].Qgis
@@ -68,7 +76,7 @@ def mock_feedback():
 @pytest.fixture
 def mock_logger(mock_feedback):
     """Create a LidarLogger with mocked feedback and file logging disabled."""
-    from PointCloudFR.utils.logger import LidarLogger
+    from point_cloud_fr.utils.logger import LidarLogger
     logger = LidarLogger(mock_feedback, log_to_file=False)
     return logger
 

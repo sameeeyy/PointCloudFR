@@ -33,3 +33,6 @@ dist/*
 # OS temp
 .DS_Store
 .ini
+
+# qgis-plugin-ci package output
+/*.zip

@@ -9,10 +9,8 @@ from pathlib import Path
 from typing import Tuple
 
 import requests
-import urllib3
 from requests.adapters import HTTPAdapter, Retry
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class DownloadProgressTracker:
     """Simplified thread-safe progress tracker counting completed files and bytes."""
@@ -56,18 +54,17 @@ class DownloadProgressTracker:
             progress = min(((self.completed_files + active_progress) / self.total_files) * 100, 100)
             self.feedback.setProgress(int(progress))
 
-    def get_progress_info(self) -> str:
-        """Get current progress information as a string."""
-        with self._lock:
-            return f"{self.completed_files}/{self.total_files} files completed"
-
 
 class Downloader:
     """Class to handle file downloads with progress tracking and integrity checks."""
 
-    def __init__(self, logger, feedback):
+    def __init__(
+        self, logger, feedback, proxies: dict = None, verify_ssl: bool = True
+    ):
         self.logger = logger
         self.feedback = feedback
+        self.proxies = proxies
+        self.verify_ssl = verify_ssl
         self._temp_files = set()
 
     def cleanup_temp_files(self):
@@ -253,14 +250,14 @@ class Downloader:
             if self.feedback and self.feedback.isCanceled():
                 return False, ""
 
-
-
-            verify_ssl = os.environ.get("POINTCLOUDFR_SSL_VERIFY", "0") == "1"
-            
             with self._create_temp_file(output_path, "download_") as temp_file_path:
                 with open(temp_file_path, "wb") as temp_file:
                     with session.get(
-                        url, stream=True, timeout=(10, 30), verify=verify_ssl
+                        url,
+                        stream=True,
+                        timeout=(10, 30),
+                        verify=self.verify_ssl,
+                        proxies=self.proxies,
                     ) as response:
                         response.raise_for_status()
                         
