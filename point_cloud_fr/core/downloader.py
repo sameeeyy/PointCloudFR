@@ -29,8 +29,10 @@ class DownloadProgressTracker:
             self.completed_files = 0
             self.file_progresses.clear()
             self._update_progress()
-            
-    def update_file_progress(self, file_id: str, downloaded_bytes: int, total_bytes: int):
+
+    def update_file_progress(
+        self, file_id: str, downloaded_bytes: int, total_bytes: int
+    ):
         """Update progress for a specific file chunk."""
         with self._lock:
             if total_bytes > 0:
@@ -51,16 +53,16 @@ class DownloadProgressTracker:
         """Update the progress bar based on completed files and active file chunks."""
         if self.total_files > 0 and self.feedback:
             active_progress = sum(self.file_progresses.values())
-            progress = min(((self.completed_files + active_progress) / self.total_files) * 100, 100)
+            progress = min(
+                ((self.completed_files + active_progress) / self.total_files) * 100, 100
+            )
             self.feedback.setProgress(int(progress))
 
 
 class Downloader:
     """Class to handle file downloads with progress tracking and integrity checks."""
 
-    def __init__(
-        self, logger, feedback, proxies: dict = None, verify_ssl: bool = True
-    ):
+    def __init__(self, logger, feedback, proxies: dict = None, verify_ssl: bool = True):
         self.logger = logger
         self.feedback = feedback
         self.proxies = proxies
@@ -110,7 +112,9 @@ class Downloader:
             self.logger.warning(f"Could not check disk space: {e}")
             return True
 
-    def _validate_file_integrity(self, file_path: Path, expected_min_size: int = 1024) -> bool:
+    def _validate_file_integrity(
+        self, file_path: Path, expected_min_size: int = 1024
+    ) -> bool:
         """Validate downloaded file integrity."""
         try:
             if not file_path.exists():
@@ -260,10 +264,10 @@ class Downloader:
                         proxies=self.proxies,
                     ) as response:
                         response.raise_for_status()
-                        
-                        total_bytes = int(response.headers.get('content-length', 0))
+
+                        total_bytes = int(response.headers.get("content-length", 0))
                         downloaded_bytes = 0
-                        
+
                         for data in response.iter_content(chunk_size=8192):
                             if self.feedback and self.feedback.isCanceled():
                                 raise InterruptedError("Operation canceled by user")
@@ -271,8 +275,9 @@ class Downloader:
                                 temp_file.write(data)
                                 downloaded_bytes += len(data)
                                 if progress_tracker:
-                                    progress_tracker.update_file_progress(file_id, downloaded_bytes, total_bytes)
-
+                                    progress_tracker.update_file_progress(
+                                        file_id, downloaded_bytes, total_bytes
+                                    )
 
                 if self.feedback and self.feedback.isCanceled():
                     return False, ""

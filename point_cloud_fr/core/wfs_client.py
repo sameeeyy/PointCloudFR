@@ -5,11 +5,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import requests
 from qgis.core import QgsGeometry
 
-from ..utils.config import (
-    WFS_LAYER_NAME,
-    WFS_PAGE_SIZE,
-    WFS_URL,
-)
+from ..utils.config import WFS_LAYER_NAME, WFS_PAGE_SIZE, WFS_URL
 
 
 def _parse_wfs_features(geojson_data: dict, property_key: str) -> List[dict]:
@@ -42,12 +38,14 @@ def _parse_wfs_features(geojson_data: dict, property_key: str) -> List[dict]:
                 coordonnees = properties.get("coordonnees_nw", "unknown")
                 name = f"tile_{coordonnees}_{property_key}"
 
-            tiles.append({
-                "url": url,
-                "name": name,
-                "geometry": feature.get("geometry"),
-                "properties": properties,
-            })
+            tiles.append(
+                {
+                    "url": url,
+                    "name": name,
+                    "geometry": feature.get("geometry"),
+                    "properties": properties,
+                }
+            )
     return tiles
 
 

@@ -114,18 +114,18 @@ class RasterUtils:
         """Merge point cloud files using PDAL via QGIS Processing."""
         try:
             import processing
-            
+
             output_path = output_folder / output_filename
-            
+
             params = {
-                'LAYERS': [f"copc://{path}" for path in pc_files],
-                'FILTER_EXPRESSION': '',
-                'FILTER_EXTENT': None,
-                'OUTPUT': str(output_path)
+                "LAYERS": [f"copc://{path}" for path in pc_files],
+                "FILTER_EXPRESSION": "",
+                "FILTER_EXTENT": None,
+                "OUTPUT": str(output_path),
             }
-            
+
             processing.run("pdal:merge", params)
-            
+
             if output_path.exists():
                 self.logger.debug(
                     f"Merged {len(pc_files)} point cloud files to: {output_path}"
@@ -134,7 +134,7 @@ class RasterUtils:
             else:
                 self.logger.error("PDAL merge completed but output file not found")
                 return ""
-                
+
         except Exception as e:
             self.logger.error(f"Error during point cloud merge: {str(e)}")
             return ""

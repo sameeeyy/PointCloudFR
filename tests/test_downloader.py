@@ -1,4 +1,5 @@
 """Tests for downloader module."""
+
 from pathlib import Path
 from unittest.mock import patch
 

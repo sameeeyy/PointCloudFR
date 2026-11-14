@@ -24,10 +24,10 @@ DATA_TYPE_OPTIONS = [
 WFS_LAYER_NAME = "IGNF_LIDAR-HD_METADONNEE:metadata"
 
 DATA_TYPE_PROPERTY_MAP = {
-    0: "url_mnt",   # MNT
-    1: "url_mns",   # MNS
-    2: "url_mnh",   # MNH
-    3: "url_npl",   # LIDAR (Nuage de points)
+    0: "url_mnt",  # MNT
+    1: "url_mns",  # MNS
+    2: "url_mnh",  # MNH
+    3: "url_npl",  # LIDAR (Nuage de points)
 }
 
 # --- Merge Strategy Definitions ---
@@ -76,7 +76,9 @@ def get_qgis_proxies(url: str):
     if not host or any(u.strip() and url.startswith(u) for u in nam.excludeList()):
         return None
     # SOCKS needs the PySocks package; requests reports it clearly if missing
-    scheme = "socks5h" if proxy.type() == QNetworkProxy.ProxyType.Socks5Proxy else "http"
+    scheme = (
+        "socks5h" if proxy.type() == QNetworkProxy.ProxyType.Socks5Proxy else "http"
+    )
     auth = ""
     if proxy.user():
         auth = f"{quote(proxy.user(), safe='')}:{quote(proxy.password(), safe='')}@"

@@ -4,7 +4,7 @@ from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsSettings
 from qgis.PyQt.QtCore import QCoreApplication, QTranslator
 from qgis.PyQt.QtWidgets import QMessageBox
 
-from .utils.config import get_plugin_version, PluginSettings, PLUGIN_NAME
+from .utils.config import PLUGIN_NAME, PluginSettings, get_plugin_version
 
 # Plugin version dynamically read from metadata.txt
 VERSION = get_plugin_version()
@@ -70,7 +70,9 @@ class LidarPlugin:
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding provider: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
+                f"Error adding provider: {str(e)}",
+                PLUGIN_NAME,
+                Qgis.MessageLevel.Critical,
             )
             show_error_message(f"Error initializing plugin GUI: {str(e)}")
 
@@ -89,7 +91,9 @@ class LidarPlugin:
 
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error removing provider: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
+                f"Error removing provider: {str(e)}",
+                PLUGIN_NAME,
+                Qgis.MessageLevel.Critical,
             )
 
 
@@ -111,7 +115,9 @@ def classFactory(iface):
         return LidarPlugin(iface)
 
     except Exception as e:
-        show_error_message(f"Error loading plugin: {str(e)}\n\nPlease check the QGIS log for details.")
+        show_error_message(
+            f"Error loading plugin: {str(e)}\n\nPlease check the QGIS log for details."
+        )
         QgsMessageLog.logMessage(
             f"Error loading plugin: {str(e)}", PLUGIN_NAME, Qgis.MessageLevel.Critical
         )

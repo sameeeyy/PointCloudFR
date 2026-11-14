@@ -20,15 +20,15 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-from .core.wfs_client import query_wfs_tiles
 from .core.downloader import Downloader, DownloadProgressTracker
 from .core.raster_utils import RasterUtils
+from .core.wfs_client import query_wfs_tiles
 from .utils.config import (
     DATA_TYPE_OPTIONS,
     DATA_TYPE_PROPERTY_MAP,
-    STRATEGY_OPTIONS,
-    MIN_DISK_SPACE_MB,
     MAX_TILES_RECOMMENDED,
+    MIN_DISK_SPACE_MB,
+    STRATEGY_OPTIONS,
     WFS_URL,
     get_qgis_proxies,
     ssl_verify,
@@ -158,9 +158,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             )
         )
         self.addOutput(
-            QgsProcessingOutputFolder(
-                "OUTPUT_DIRECTORY", self.tr("Download directory")
-            )
+            QgsProcessingOutputFolder("OUTPUT_DIRECTORY", self.tr("Download directory"))
         )
         self.addOutput(QgsProcessingOutputFile("OUTPUT_FILE", self.tr("Data file")))
         self.addOutput(
@@ -364,7 +362,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                     url_id = futures[future]
 
                     if self.feedback.isCanceled():
-                        self.logger.info("Cancellation requested — stopping downloads...")
+                        self.logger.info(
+                            "Cancellation requested — stopping downloads..."
+                        )
                         for f in futures:
                             if not f.done():
                                 f.cancel()
@@ -386,9 +386,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             if not downloaded_files:
                 raise QgsProcessingException("No files were successfully downloaded.")
 
-            self.logger.info(
-                f"Downloaded {len(downloaded_files)}/{total_files} files"
-            )
+            self.logger.info(f"Downloaded {len(downloaded_files)}/{total_files} files")
 
             final_output = downloaded_files[0] if downloaded_files else ""
             output_files_str = ";".join(downloaded_files)

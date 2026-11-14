@@ -1,4 +1,5 @@
 """Tests for QGIS proxy settings -> requests proxies."""
+
 from unittest.mock import MagicMock, patch
 
 URL = "https://data.geopf.fr/wfs/ows"
