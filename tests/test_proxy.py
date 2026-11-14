@@ -1,4 +1,5 @@
 """Tests for QGIS proxy settings -> requests proxies."""
+
 from unittest.mock import MagicMock, patch
 
 URL = "https://data.geopf.fr/wfs/ows"
@@ -24,7 +25,7 @@ def test_no_proxy_configured_uses_requests_defaults():
 
 
 def test_http_proxy_with_escaped_credentials():
-    url = "http://bob:p%40ss%3A1@proxy.corp:3128"
+    url = "http://bob:p%40ss%3A1@proxy.corp:3128"  # pragma: allowlist secret
     assert _proxies("proxy.corp", "bob", "p@ss:1") == {"http": url, "https": url}
 
 

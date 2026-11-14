@@ -1,0 +1,7 @@
+# Keeps GitHub Actions up to date (e.g. before a Node.js runtime is deprecated)
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
@@ -12,7 +11,7 @@ from ..utils.config import (
 )
 
 
-def _parse_wfs_features(geojson_data: dict, property_key: str) -> List[dict]:
+def _parse_wfs_features(geojson_data: dict, property_key: str) -> list[dict]:
     """Parse WFS GeoJSON response into tile dicts."""
     tiles = []
     for feature in geojson_data.get("features", []):
@@ -42,12 +41,14 @@ def _parse_wfs_features(geojson_data: dict, property_key: str) -> List[dict]:
                 coordonnees = properties.get("coordonnees_nw", "unknown")
                 name = f"tile_{coordonnees}_{property_key}"
 
-            tiles.append({
-                "url": url,
-                "name": name,
-                "geometry": feature.get("geometry"),
-                "properties": properties,
-            })
+            tiles.append(
+                {
+                    "url": url,
+                    "name": name,
+                    "geometry": feature.get("geometry"),
+                    "properties": properties,
+                }
+            )
     return tiles
 
 
@@ -58,7 +59,7 @@ def query_wfs_tiles(
     territory: dict,
     proxies: dict = None,
     verify_ssl: bool = True,
-) -> List[dict]:
+) -> list[dict]:
     """Query WFS service with pagination using the appropriate CRS for the detected territory.
 
     The aoi_geometry must already be projected into the territory's native CRS
