@@ -7,6 +7,7 @@ from qgis.core import (
     QgsGeometry,
     QgsProcessing,
     QgsProcessingAlgorithm,
+    QgsProcessingException,
     QgsProcessingOutputFile,
     QgsProcessingOutputFolder,
     QgsProcessingOutputString,
@@ -28,6 +29,9 @@ from .utils.config import (
     STRATEGY_OPTIONS,
     MIN_DISK_SPACE_MB,
     MAX_TILES_RECOMMENDED,
+    WFS_URL,
+    get_qgis_proxies,
+    ssl_verify,
 )
 from .utils.logger import LidarLogger
 from .utils.territory import detect_territory
@@ -44,11 +48,14 @@ class LidarDownloaderAlgorithm(QgsProcessingAlgorithm):
     FORCE_DOWNLOAD = "FORCE_DOWNLOAD"
     MERGE_STRATEGY = "MERGE_STRATEGY"
     LOAD_LAYER = "LOAD_LAYER"
+    VERIFY_SSL = "VERIFY_SSL"
 
     def __init__(self):
         super().__init__()
         self.logger = None
         self.feedback = None
+        self.proxies = None
+        self.verify_ssl = True
 
     def tr(self, string):
         """Returns a translatable string with the self.tr() function."""
@@ -97,7 +104,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.DATA_TYPE,
-                self.tr("Type de données à télécharger"),
+                self.tr("Data type to download"),
                 options=DATA_TYPE_OPTIONS,
                 defaultValue=0,
             )
@@ -129,20 +136,30 @@ Repository: https://github.com/sameeeyy/PointCloudFR
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.LOAD_LAYER,
-                self.tr("Charger les données après le téléchargement"),
+                self.tr("Load data after download"),
                 defaultValue=True,
             )
         )
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.FORCE_DOWNLOAD,
-                self.tr("Forcer le téléchargement (ignorer les fichiers existants)"),
+                self.tr("Force download (ignore existing files)"),
                 defaultValue=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.VERIFY_SSL,
+                self.tr(
+                    "Verify SSL certificates (untick behind an SSL-inspecting proxy)"
+                ),
+                # POINTCLOUDFR_SSL_VERIFY=0 changes the default for every run
+                defaultValue=ssl_verify(),
             )
         )
         self.addOutput(
             QgsProcessingOutputFolder(
-                "OUTPUT_DIRECTORY", self.tr("Répértoire de téléchargement")
+                "OUTPUT_DIRECTORY", self.tr("Download directory")
             )
         )
         self.addOutput(QgsProcessingOutputFile("OUTPUT_FILE", self.tr("Data file")))
@@ -177,7 +194,14 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             if total > 1:
                 self.logger.info(f"Searching tiles for feature {i + 1}/{total}...")
 
-            tiles = query_wfs_tiles(geom, property_key, self.logger, territory)
+            tiles = query_wfs_tiles(
+                geom,
+                property_key,
+                self.logger,
+                territory,
+                self.proxies,
+                self.verify_ssl,
+            )
             for tile in tiles:
                 all_tiles[tile["name"]] = tile
 
@@ -201,11 +225,18 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 parameters, self.MERGE_STRATEGY, context
             )
             load_layer = self.parameterAsBool(parameters, self.LOAD_LAYER, context)
+            self.verify_ssl = downloader.verify_ssl = self.parameterAsBool(
+                parameters, self.VERIFY_SSL, context
+            )
+            if not self.verify_ssl:
+                self.logger.warning(
+                    "SSL certificate verification is disabled: "
+                    "downloads are not protected against tampering."
+                )
 
             property_key = DATA_TYPE_PROPERTY_MAP.get(data_type)
             if not property_key:
-                self.logger.error(f"Invalid data type: {data_type}")
-                return {}
+                raise QgsProcessingException(f"Invalid data type: {data_type}")
 
             data_type_label = DATA_TYPE_OPTIONS[data_type].split(" (")[0]
             self.logger.info(f"Downloading {data_type_label} data...")
@@ -222,8 +253,9 @@ Repository: https://github.com/sameeeyy/PointCloudFR
             try:
                 output_folder.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                self.logger.error(f"Cannot create output folder '{output_folder}': {e}")
-                return {}
+                raise QgsProcessingException(
+                    f"Cannot create output folder '{output_folder}': {e}"
+                ) from e
 
             downloads_dir = output_folder / "downloads"
             downloads_dir.mkdir(exist_ok=True)
@@ -231,12 +263,19 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             # --- Disk space check (once) ---
             if not downloader.check_disk_space(output_folder, MIN_DISK_SPACE_MB):
-                return {}
+                raise QgsProcessingException("Insufficient disk space")
 
             # --- Collect all geometries from input layer ---
             source_crs = source.sourceCrs()
-            first_feature = next(source.getFeatures(), None)
-            first_geom = first_feature.geometry() if first_feature else QgsGeometry()
+            # First *valid* geometry: an empty first feature must not force Métropole
+            first_geom = next(
+                (
+                    f.geometry()
+                    for f in source.getFeatures()
+                    if f.hasGeometry() and not f.geometry().isEmpty()
+                ),
+                QgsGeometry(),
+            )
             territory = detect_territory(
                 first_geom,
                 source_crs,
@@ -255,10 +294,14 @@ Repository: https://github.com/sameeeyy/PointCloudFR
 
             geometries = self._collect_geometries(source, transform)
             if not geometries:
-                self.logger.error("No valid geometries found in input layer")
-                return {}
+                raise QgsProcessingException("No valid geometries found in input layer")
 
             self.logger.debug(f"Processing {len(geometries)} feature(s)")
+
+            # shortcut: proxy resolved once for the WFS host; tiles are served from the same host
+            self.proxies = downloader.proxies = get_qgis_proxies(WFS_URL)
+            if self.proxies:
+                self.logger.debug("Using proxy from QGIS network settings")
 
             # --- Query WFS for each feature, deduplicate ---
             self.logger.info("Searching for tiles...")
@@ -341,8 +384,7 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
 
             if not downloaded_files:
-                self.logger.error("No files were successfully downloaded.")
-                return {"OUTPUT_DIRECTORY": str(downloads_dir), "OUTPUT_FILES": ""}
+                raise QgsProcessingException("No files were successfully downloaded.")
 
             self.logger.info(
                 f"Downloaded {len(downloaded_files)}/{total_files} files"
@@ -403,12 +445,16 @@ Repository: https://github.com/sameeeyy/PointCloudFR
                 "OUTPUT_FILES": output_files_str,
             }
 
+        except QgsProcessingException as e:
+            # Processing shows the message itself; keep a trace in the file log
+            self.logger.debug(f"Aborted: {e}")
+            raise
         except Exception as e:
-            if self.logger:
-                error_msg = f"Critical error: {str(e)}"
-                if getattr(self.logger, "log_file", None):
-                    error_msg += f"\nDetailed log saved to: {self.logger.log_file}"
-                self.logger.error(error_msg)
-            return {}
+            error_msg = f"Critical error: {e}"
+            self.logger.debug(error_msg)
+            if self.logger.log_file:
+                error_msg += f"\nDetailed log saved to: {self.logger.log_file}"
+            # Raising (not returning {}) stops downstream steps in the Model Builder
+            raise QgsProcessingException(error_msg) from e
         finally:
             downloader.cleanup_temp_files()

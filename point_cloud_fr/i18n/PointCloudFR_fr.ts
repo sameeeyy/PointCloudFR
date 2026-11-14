@@ -35,6 +35,41 @@
     </message>
     <message>
         <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Download LiDAR and derived products data</source>
+        <translation>Télécharger les données LiDAR et produits dérivés</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Data type to download</source>
+        <translation>Type de données à télécharger</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Load data after download</source>
+        <translation>Charger les données après le téléchargement</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Download directory</source>
+        <translation>Répertoire de téléchargement</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Data file</source>
+        <translation>Fichier de données</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Data files for iteration (semicolon separated)</source>
+        <translation>Fichiers de données pour itération (séparés par des points-virgules)</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
+        <source>Verify SSL certificates (untick behind an SSL-inspecting proxy)</source>
+        <translation>Vérifier les certificats SSL (à décocher derrière un proxy qui inspecte le SSL)</translation>
+    </message>
+    <message>
+        <location filename="../lidar_algorithm.py" line="0"/>
         <source>Strategy for multiple tiles</source>
         <translation>Stratégie de traitement des tuiles multiples</translation>
     </message>
@@ -159,11 +194,6 @@
     <name>LidarPlugin</name>
     <message>
         <location filename="../__init__.py" line="0"/>
-        <source>Missing Dependencies</source>
-        <translation>Dépendances manquantes</translation>
-    </message>
-    <message>
-        <location filename="../__init__.py" line="0"/>
         <source>Welcome to PointCloudFR!</source>
         <translation>Bienvenue dans PointCloudFR !</translation>
     </message>
@@ -171,16 +201,6 @@
         <location filename="../__init__.py" line="0"/>
         <source>You can find the tools in the Processing Toolbox under 'PointCloudFR'.</source>
         <translation>Les outils sont disponibles dans la boîte à outils de traitement sous 'PointCloudFR'.</translation>
-    </message>
-    <message>
-        <location filename="../__init__.py" line="0"/>
-        <source>The following Python packages are required:</source>
-        <translation>Les packages Python suivants sont nécessaires :</translation>
-    </message>
-    <message>
-        <location filename="../__init__.py" line="0"/>
-        <source>Would you like to install them now? After installation please restart QGIS.</source>
-        <translation>Souhaitez-vous les installer maintenant ? Après l'installation, veuillez redémarrer QGIS.</translation>
     </message>
     <message>
         <location filename="../__init__.py" line="0"/>

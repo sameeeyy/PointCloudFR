@@ -13,6 +13,15 @@ from qgis.core import (
 from ..utils.config import STRATEGY_OPTIONS
 
 
+def _tile_geometry(tile: dict) -> QgsGeometry:
+    """Build the tile footprint (outer ring of the first polygon) from GeoJSON."""
+    coords = tile["geometry"]["coordinates"]
+    ring = coords[0][0] if tile["geometry"].get("type") == "MultiPolygon" else coords[0]
+    return QgsGeometry.fromPolygonXY(
+        [[QgsPointXY(float(c[0]), float(c[1])) for c in ring]]
+    )
+
+
 class RasterUtils:
     """Utilities for handling raster and point cloud data in QGIS."""
 
@@ -139,17 +148,7 @@ class RasterUtils:
             for tile in tiles:
                 if "geometry" in tile and tile["geometry"]:
                     try:
-                        geom_type = tile["geometry"].get("type", "Polygon")
-                        coords = tile["geometry"]["coordinates"]
-                        
-                        if geom_type == "MultiPolygon":
-                            ring = coords[0][0]
-                        else:
-                            ring = coords[0]
-                            
-                        tile_geom = QgsGeometry.fromPolygonXY(
-                            [[QgsPointXY(float(c[0]), float(c[1])) for c in ring]]
-                        )
+                        tile_geom = _tile_geometry(tile)
 
                         if tile_geom.intersects(aoi_geometry):
                             intersecting_tiles.append(tile)
@@ -190,17 +189,7 @@ class RasterUtils:
             for tile in tiles:
                 if "geometry" in tile and tile["geometry"]:
                     try:
-                        geom_type = tile["geometry"].get("type", "Polygon")
-                        coords = tile["geometry"]["coordinates"]
-                        
-                        if geom_type == "MultiPolygon":
-                            ring = coords[0][0]
-                        else:
-                            ring = coords[0]
-                            
-                        tile_geom = QgsGeometry.fromPolygonXY(
-                            [[QgsPointXY(float(c[0]), float(c[1])) for c in ring]]
-                        )
+                        tile_geom = _tile_geometry(tile)
 
                         intersection = tile_geom.intersection(aoi_geometry)
                         area = intersection.area()

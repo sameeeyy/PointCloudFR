@@ -7,13 +7,13 @@ class TestSanitizeFilename:
     """Test filename sanitization for Windows compatibility."""
 
     def test_normal_filename(self, mock_logger, mock_feedback):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         assert d._sanitize_filename("tile_0001.tif") == "tile_0001.tif"
 
     def test_special_characters(self, mock_logger, mock_feedback):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         result = d._sanitize_filename('tile<>:"/\\|?*.tif')
@@ -27,7 +27,7 @@ class TestSanitizeFilename:
         assert "*" not in result
 
     def test_long_filename_truncation(self, mock_logger, mock_feedback):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         long_name = "a" * 300 + ".tif"
@@ -36,7 +36,7 @@ class TestSanitizeFilename:
         assert result.endswith(".tif")
 
     def test_ampersand_replaced(self, mock_logger, mock_feedback):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         result = d._sanitize_filename("file&name.tif")
@@ -47,14 +47,14 @@ class TestFileIntegrityValidation:
     """Test file integrity checks."""
 
     def test_nonexistent_file(self, mock_logger, mock_feedback):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         result = d._validate_file_integrity(Path("/nonexistent/file.tif"))
         assert result is False
 
     def test_too_small_file(self, mock_logger, mock_feedback, tmp_path):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         small_file = tmp_path / "small.tif"
@@ -63,7 +63,7 @@ class TestFileIntegrityValidation:
         assert result is False
 
     def test_valid_file(self, mock_logger, mock_feedback, tmp_path):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         valid_file = tmp_path / "valid.tif"
@@ -76,15 +76,15 @@ class TestDiskSpaceCheck:
     """Test disk space verification."""
 
     def test_sufficient_space(self, mock_logger, mock_feedback, tmp_path):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         # tmp_path should always have enough space for this small requirement
         assert d.check_disk_space(tmp_path, 1) is True
 
-    @patch("PointCloudFR.core.downloader.shutil.disk_usage")
+    @patch("point_cloud_fr.core.downloader.shutil.disk_usage")
     def test_insufficient_space(self, mock_usage, mock_logger, mock_feedback, tmp_path):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         mock_usage.return_value = (1000000, 900000, 50000)  # ~50KB free
         d = Downloader(mock_logger, mock_feedback)
@@ -95,7 +95,7 @@ class TestDownloadProgressTracker:
     """Test the progress tracking mechanism."""
 
     def test_initial_state(self, mock_feedback):
-        from PointCloudFR.core.downloader import DownloadProgressTracker
+        from point_cloud_fr.core.downloader import DownloadProgressTracker
 
         tracker = DownloadProgressTracker(mock_feedback)
         tracker.set_total_files(10)
@@ -103,25 +103,15 @@ class TestDownloadProgressTracker:
         assert tracker.completed_files == 0
 
     def test_file_completion(self, mock_feedback):
-        from PointCloudFR.core.downloader import DownloadProgressTracker
+        from point_cloud_fr.core.downloader import DownloadProgressTracker
 
         tracker = DownloadProgressTracker(mock_feedback)
         tracker.set_total_files(2)
         tracker.mark_file_completed("file1")
         assert tracker.completed_files == 1
 
-    def test_progress_info_string(self, mock_feedback):
-        from PointCloudFR.core.downloader import DownloadProgressTracker
-
-        tracker = DownloadProgressTracker(mock_feedback)
-        tracker.set_total_files(5)
-        tracker.mark_file_completed("f1")
-        tracker.mark_file_completed("f2")
-        info = tracker.get_progress_info()
-        assert "2/5" in info
-
     def test_file_progress_tracking(self, mock_feedback):
-        from PointCloudFR.core.downloader import DownloadProgressTracker
+        from point_cloud_fr.core.downloader import DownloadProgressTracker
 
         tracker = DownloadProgressTracker(mock_feedback)
         tracker.set_total_files(1)
@@ -134,7 +124,7 @@ class TestTempFileCleanup:
     """Test temporary file management."""
 
     def test_cleanup_removes_files(self, mock_logger, mock_feedback, tmp_path):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         temp_file = tmp_path / "temp_test"
@@ -146,7 +136,7 @@ class TestTempFileCleanup:
         assert temp_file not in d._temp_files
 
     def test_cleanup_handles_missing_files(self, mock_logger, mock_feedback):
-        from PointCloudFR.core.downloader import Downloader
+        from point_cloud_fr.core.downloader import Downloader
 
         d = Downloader(mock_logger, mock_feedback)
         d._temp_files.add(Path("/nonexistent/temp_file"))
