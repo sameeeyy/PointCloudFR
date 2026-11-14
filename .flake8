@@ -1,0 +1,4 @@
+[flake8]
+# black formats code at 88 columns but never splits long strings or comments
+max-line-length = 120
+extend-ignore = E203, W503

@@ -1,6 +1,8 @@
 """Tests for the main algorithm module."""
-import pytest
+
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestAlgorithmGeometryCollection:
@@ -115,7 +117,9 @@ class TestQueryTilesForGeometries:
         assert "tile_B" in names
         assert "tile_C" in names
         assert mock_query.call_count == 2
-        mock_query.assert_called_with(geom2, "url_mnt", mock_logger, territory, None, True)
+        mock_query.assert_called_with(
+            geom2, "url_mnt", mock_logger, territory, None, True
+        )
 
     @patch("point_cloud_fr.lidar_algorithm.query_wfs_tiles")
     def test_query_tiles_cancellation(self, mock_query, mock_logger, mock_feedback):
@@ -142,7 +146,10 @@ class TestDataTypeMapping:
     """Test data type configuration and mapping in algorithm."""
 
     def test_all_options_have_properties(self):
-        from point_cloud_fr.utils.config import DATA_TYPE_OPTIONS, DATA_TYPE_PROPERTY_MAP
+        from point_cloud_fr.utils.config import (
+            DATA_TYPE_OPTIONS,
+            DATA_TYPE_PROPERTY_MAP,
+        )
 
         for idx in range(len(DATA_TYPE_OPTIONS)):
             assert idx in DATA_TYPE_PROPERTY_MAP
