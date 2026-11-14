@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 from qgis.core import (
     QgsGeometry,
@@ -74,7 +73,7 @@ class RasterUtils:
 
     def merge_rasters_gdal(
         self,
-        raster_files: List[str],
+        raster_files: list[str],
         output_folder: Path,
         output_filename: str = "merged_output.tif",
     ) -> str:
@@ -107,25 +106,25 @@ class RasterUtils:
 
     def merge_point_clouds(
         self,
-        pc_files: List[str],
+        pc_files: list[str],
         output_folder: Path,
         output_filename: str = "merged_output.laz",
     ) -> str:
         """Merge point cloud files using PDAL via QGIS Processing."""
         try:
             import processing
-            
+
             output_path = output_folder / output_filename
-            
+
             params = {
-                'LAYERS': [f"copc://{path}" for path in pc_files],
-                'FILTER_EXPRESSION': '',
-                'FILTER_EXTENT': None,
-                'OUTPUT': str(output_path)
+                "LAYERS": [f"copc://{path}" for path in pc_files],
+                "FILTER_EXPRESSION": "",
+                "FILTER_EXTENT": None,
+                "OUTPUT": str(output_path),
             }
-            
+
             processing.run("pdal:merge", params)
-            
+
             if output_path.exists():
                 self.logger.debug(
                     f"Merged {len(pc_files)} point cloud files to: {output_path}"
@@ -134,14 +133,14 @@ class RasterUtils:
             else:
                 self.logger.error("PDAL merge completed but output file not found")
                 return ""
-                
+
         except Exception as e:
             self.logger.error(f"Error during point cloud merge: {str(e)}")
             return ""
 
     def filter_intersecting_tiles(
-        self, tiles: List[dict], aoi_geometry: QgsGeometry
-    ) -> List[dict]:
+        self, tiles: list[dict], aoi_geometry: QgsGeometry
+    ) -> list[dict]:
         """Filter tiles that actually intersect with AOI geometry."""
         try:
             intersecting_tiles = []
@@ -165,8 +164,8 @@ class RasterUtils:
             return tiles
 
     def select_best_tiles(
-        self, tiles: List[dict], aoi_geometry: QgsGeometry, strategy: int
-    ) -> List[dict]:
+        self, tiles: list[dict], aoi_geometry: QgsGeometry, strategy: int
+    ) -> list[dict]:
         """Select tiles based on strategy with improved coverage calculation."""
         if not tiles:
             self.logger.warning("No tiles provided for selection")

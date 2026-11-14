@@ -13,7 +13,9 @@ class LidarProcessingProvider(QgsProcessingProvider):
         return QIcon(str(Path(__file__).parent / "icon.png"))
 
     def loadAlgorithms(self):
-        QgsMessageLog.logMessage("Loading algorithms", "PointCloudFR", Qgis.MessageLevel.Info)
+        QgsMessageLog.logMessage(
+            "Loading algorithms", "PointCloudFR", Qgis.MessageLevel.Info
+        )
         try:
             self.addAlgorithm(PointCloudFRAlgorithm())
             QgsMessageLog.logMessage(
@@ -21,7 +23,9 @@ class LidarProcessingProvider(QgsProcessingProvider):
             )
         except Exception as e:
             QgsMessageLog.logMessage(
-                f"Error adding algorithm: {str(e)}", "PointCloudFR", Qgis.MessageLevel.Critical
+                f"Error adding algorithm: {str(e)}",
+                "PointCloudFR",
+                Qgis.MessageLevel.Critical,
             )
 
     def id(self):

@@ -15,7 +15,10 @@ python -m pytest tests/ -v
 python -m pytest tests/test_wfs_client.py -v                 # single file
 python -m pytest tests/test_wfs_client.py::test_name -v      # single test
 
-# Formatting / lint (pre-commit: pyupgrade, autoflake, isort --profile black, black)
+# Lint & security (pre-commit: formatting + Flake8, Bandit, detect-secrets, file checks;
+# the same families of checks as the plugins.qgis.org scan). CI fails if any hook fails.
+python -m pip install pre-commit
+pre-commit install            # run the hooks on every commit
 pre-commit run --all-files
 
 # Build the QGIS plugin ZIP like CI (qgis-plugin-ci uses `git archive`: only committed files are packaged)
@@ -57,4 +60,5 @@ Releases use [qgis-plugin-ci](https://github.com/qgis/qgis-plugin-ci), configure
 - `CHANGELOG.md` is the single source of release notes: each version is `## [X.Y.Z] - YYYY-MM-DD`. qgis-plugin-ci ends an entry at the next `##`, so **never use `##`/`###` headings inside an entry** (use `**bold**` lines), and do not add an "Unreleased" section.
 - At packaging time qgis-plugin-ci rewrites `version=` in `metadata.txt` from the tag and fills `changelog=` with the last 3 CHANGELOG entries; keep `changelog=` empty in the source. `version=` in the source is still read at runtime by `utils/config.get_plugin_version`, so bump it with each release.
 - A release = add the CHANGELOG section, bump `version=` in `metadata.txt`, commit, then push tag `vX.Y.Z`. A suffix such as `v2.4.0-rc1` publishes an experimental version.
-- CI (`.github/workflows/build-plugin.yml`): on pushes to `main` runs pre-commit and opens a `pre-commit-fixes` PR with formatting changes; runs pytest and `qgis-plugin-ci package latest` on every push/PR. On a `v*` tag it creates the GitHub Release (notes from `qgis-plugin-ci changelog`) and runs `qgis-plugin-ci release`, which attaches the ZIP and uploads it to plugins.qgis.org when the `QGIS_PLUGIN_TOKEN` secret is set (otherwise it warns and skips the upload).
+- CI (`.github/workflows/build-plugin.yml`, runs on pushes to `main`, PRs and `v*` tags): `lint` (pre-commit) and `test` (pytest) run in parallel, then `package` (`qgis-plugin-ci package latest` + a check that the ZIP has no hidden or compiled files). On a `v*` tag, `release` creates the GitHub Release (notes from `qgis-plugin-ci changelog`) and runs `qgis-plugin-ci release`, which attaches the ZIP and uploads it to plugins.qgis.org when the `QGIS_PLUGIN_TOKEN` secret is set (otherwise it warns and skips the upload). Dependabot keeps the actions up to date.
+- Fake credentials in tests need a `# pragma: allowlist secret` comment, or detect-secrets fails.
