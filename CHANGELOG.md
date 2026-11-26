@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.3] - 2026-11-26
+
+**🛠️ Improvements**
+
+* **Changelog lisible dans QGIS**: Le changelog affiché dans le gestionnaire d'extensions et sur plugins.qgis.org est désormais en texte simple (plus de `**`, de liens Markdown ni de backticks). Les notes de release GitHub restent en Markdown.
+
 ## [2.3.2] - 2026-11-14
 
 **🚀 Highlights & Improvements**

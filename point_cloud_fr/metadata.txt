@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 qgisMaximumVersion=4.99
 description=Downloads LiDAR tiles from IGN that intersect with the input AOI
 about=Downloads LiDAR point cloud data and derived products (MNT,MNS,MNH) from IGN (French National Geographic Institute) based on an Area of Interest (AOI). Perfect for automated workflows in QGIS Model Builder.
-version=2.3.2
+version=2.3.3
 author=Samy KHELIL
 email=k2samy@hotmail.fr
 

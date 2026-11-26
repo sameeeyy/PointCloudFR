@@ -64,9 +64,15 @@ jobs:
       - name: Install qgis-plugin-ci
         run: python -m pip install "qgis-plugin-ci>=2.11,<3"
 
-      # "latest" = newest version in CHANGELOG.md; the release job uses the tag
+      # QGIS shows metadata.txt's changelog as plain text: strip the Markdown
+      # from the CHANGELOG.md copied into it (CI checkout only, never committed)
+      - name: Convert CHANGELOG.md to plain text for QGIS
+        run: python scripts/changelog_for_qgis.py CHANGELOG.md
+
+      # "latest" = newest version in CHANGELOG.md; the release job uses the tag.
+      # --allow-uncommitted-changes: the converted CHANGELOG.md above
       - name: Package the QGIS plugin
-        run: qgis-plugin-ci package latest
+        run: qgis-plugin-ci package latest --allow-uncommitted-changes
 
       # plugins.qgis.org flags hidden and compiled files
       - name: Check ZIP contents
@@ -115,12 +121,16 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release_notes.md
 
+      # After the GitHub release notes, which keep the Markdown
+      - name: Convert CHANGELOG.md to plain text for QGIS
+        run: python scripts/changelog_for_qgis.py CHANGELOG.md
+
       # Builds the ZIP from the tag, attaches it to the GitHub Release and,
       # when the QGIS_PLUGIN_TOKEN secret is set, publishes it on plugins.qgis.org
       - name: Publish the plugin
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          ARGS=(--release-tag "$GITHUB_REF_NAME" --github-token "$GH_TOKEN")
+          ARGS=(--release-tag "$GITHUB_REF_NAME" --github-token "$GH_TOKEN" --allow-uncommitted-changes)
           if [ -n "$QGIS_PLUGIN_TOKEN" ]; then
             ARGS+=(--qgis-token "$QGIS_PLUGIN_TOKEN")
           else
